@@ -8,6 +8,8 @@
     "start": "next start"
   },
   "dependencies": {
+    "@neondatabase/auth": "^0.2.0-beta.1",
+    "@neondatabase/serverless": "^0.10.0",
     "@composio/core": "^0.6.3",
     "@google/genai": "^1.0.0",
     "dotenv": "^16.4.0",
