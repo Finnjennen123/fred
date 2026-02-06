@@ -6,7 +6,7 @@
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: #fff;
+  background: #faf9f7;
   overflow: hidden;
   height: 100vh;
   width: 100vw;
@@ -27,6 +27,7 @@ body {
   justify-content: center;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   padding-right: 0;
+  position: relative;
 }
 
 .orb-area.shifted {
@@ -79,11 +80,32 @@ body {
 
 .mute-btn:hover {
   color: #1a1a1a;
-  background: #f5f5f5;
+  background: #f0eeea;
 }
 
 .mute-btn.active {
   color: #ff6b00;
+}
+
+.sign-out-btn {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 25;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.sign-out-btn:hover {
+  color: #1a1a1a;
+  border-color: #ccc;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .toggle-btn {
@@ -96,7 +118,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
+  background: #faf9f7;
   border: none;
   border-radius: 50%;
   color: #999;
@@ -116,7 +138,7 @@ body {
   right: 0;
   width: 0;
   height: 100vh;
-  background: #fff;
+  background: #faf9f7;
   overflow: hidden;
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
@@ -127,7 +149,7 @@ body {
 
 .sidebar.open {
   width: 380px;
-  border-left-color: #f0f0f0;
+  border-left-color: #ece9e4;
 }
 
 .sidebar-head {
@@ -155,7 +177,7 @@ body {
 
 .sidebar-head .close-btn:hover {
   color: #1a1a1a;
-  background: #f5f5f5;
+  background: #f0eeea;
 }
 
 .sidebar-head h2 {
@@ -198,7 +220,7 @@ body {
 }
 
 .messages::-webkit-scrollbar-thumb {
-  background: #e0e0e0;
+  background: #d9d4cd;
   border-radius: 4px;
 }
 
@@ -236,7 +258,7 @@ body {
 .input-row {
   display: flex;
   align-items: center;
-  background: #f8f8f8;
+  background: #f0eeea;
   border-radius: 24px;
   padding: 12px 18px;
 }

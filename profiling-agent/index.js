@@ -2,6 +2,7 @@ import * as readline from 'readline';
 import * as fs from 'fs';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import { callLLM } from '../lib/llm.js';
 
 // Load .env from project root
 dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
@@ -40,7 +41,7 @@ Do NOT ask about these again. Use this context to shape your profiling questions
 
 Based on the subject and reason you already have, figure out:
 
-1. WHERE THEY'RE STARTING FROM — What do they already know about this subject? Complete beginner, some basics, intermediate?
+1. WHERE THEY'RE STARTING FROM — What do they already know about this subject? Complete beginner, some basics, intermediate? This determines where the course starts.
 
 2. HOW DEEP TO GO — Should this be a broad overview or a deep dive? Do they need mastery or just familiarity?
 
@@ -56,7 +57,7 @@ NOT everything needs to be asked. YOU decide what's relevant based on the subjec
 
 You can gather information in different ways:
 
-1. DIRECT QUESTIONS — "Have you ever coded before?" or "How would you rate your understanding of this right now?"
+1. DIRECT QUESTIONS — "Have you ever coded before?",...
 
 2. EXPLORATORY QUESTIONS — "What have you already tried or read about this?" or "Is there anything specific you want to make sure we cover?"
 
@@ -70,11 +71,11 @@ The key: be efficient. Don't ask 10 questions if 2 will do. Adapt based on what 
   CONVERSATION STYLE
 ═══════════════════════════════════════════
 
-- Reference what you learned in onboarding: "So you mentioned you're a teacher looking to use AI for grading..."
+- You already know them a bit from onboarding — reference what you learned: "So you mentioned you're a teacher looking to use AI for grading..."
 - Be curious but not interrogating. This isn't an intake form.
 - If they give short answers, that's fine. Don't force elaboration.
-- If they say "I don't know," that usually means beginner. Accept it and move on.
-- Keep it to 2-4 exchanges typically. Depends on how complex the subject is.
+- If they say "I don't know" to a level-check, that usually means beginner. Accept it.
+- Keep it to 2-5 exchanges typically. Depends on how complex the subject is.
 
 ═══════════════════════════════════════════
   WHEN TO FINISH
@@ -180,40 +181,12 @@ function getUserInput(prompt) {
     });
 }
 
-// Function to call OpenRouter API
+// Function to call LLM
 async function callGemini() {
-    const apiKey = process.env.OPENROUTER_API_KEY;
-
-    if (!apiKey || apiKey === 'your_api_key_here') {
-        console.error('\n❌ Error: OPENROUTER_API_KEY not set in .env file');
-        console.error('Please add your OpenRouter API key to the .env file\n');
-        process.exit(1);
-    }
-
     try {
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                model: "google/gemini-3-flash-preview",
-                messages: messages,
-                tools: tools,
-                tool_choice: "auto",
-            }),
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`API request failed: ${response.status} ${response.statusText}\n${errorText}`);
-        }
-
-        const data = await response.json();
-        return data;
+        return await callLLM({ messages, tools });
     } catch (error) {
-        console.error('\n❌ Error calling OpenRouter API:', error.message);
+        console.error('\n❌ Error calling LLM:', error.message);
         process.exit(1);
     }
 }
