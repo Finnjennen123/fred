@@ -126,6 +126,12 @@ export default function Home() {
         const pcm16 = new Int16Array(audioData)
         const float32 = new Float32Array(pcm16.length)
         for (let i = 0; i < pcm16.length; i++) float32[i] = pcm16[i] / 32768
+
+        // Apply short fade-in/fade-out (48 samples = 2ms) to avoid clicks
+        const FADE = Math.min(48, float32.length)
+        for (let i = 0; i < FADE; i++) float32[i] *= i / FADE
+        for (let i = 0; i < FADE; i++) float32[float32.length - 1 - i] *= i / FADE
+
         const audioBuf = ctx.createBuffer(1, float32.length, 24000)
         audioBuf.getChannelData(0).set(float32)
         const source = ctx.createBufferSource()
@@ -178,6 +184,8 @@ export default function Home() {
     if (!reader) return
 
     let leftover = new Uint8Array(0)
+    // Buffer at least 12000 samples (500ms at 24kHz) = 24000 bytes before playing
+    const MIN_BUFFER_BYTES = 24000
 
     while (true) {
       const { done, value } = await reader.read()
@@ -191,14 +199,24 @@ export default function Home() {
 
       // PCM 16-bit = 2 bytes per sample; ensure even byte count
       const usable = merged.length - (merged.length % 2)
-      if (usable > 0) {
-        // Copy to a fresh ArrayBuffer (value.buffer may have wrong offset)
+      if (usable >= MIN_BUFFER_BYTES) {
         const clean = new Uint8Array(usable)
         clean.set(merged.subarray(0, usable))
         audioQueueRef.current.push(clean.buffer)
         playAudioQueue()
+        leftover = merged.subarray(usable)
+      } else {
+        leftover = merged
       }
-      leftover = merged.subarray(usable)
+    }
+
+    // Flush any remaining buffered audio
+    if (leftover.length >= 2 && !shouldStopSpeakingRef.current) {
+      const usable = leftover.length - (leftover.length % 2)
+      const clean = new Uint8Array(usable)
+      clean.set(leftover.subarray(0, usable))
+      audioQueueRef.current.push(clean.buffer)
+      playAudioQueue()
     }
     console.log('[TTS] Sentence done')
   }, [playAudioQueue])
