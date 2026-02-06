@@ -8,7 +8,11 @@
     "start": "next start"
   },
   "dependencies": {
+    "@composio/core": "^0.6.3",
     "@google/generative-ai": "^0.21.0",
+    "@google/genai": "^1.0.0",
+    "@neondatabase/auth": "^0.2.0-beta.1",
+    "@neondatabase/serverless": "^0.10.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@xyflow/react": "^12.10.0",
     "autoprefixer": "^10.4.24",
