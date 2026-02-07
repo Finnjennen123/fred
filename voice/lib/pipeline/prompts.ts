@@ -724,7 +724,7 @@ export default function SystemSurvival({ rounds }) {
       ) : survived ? (
         <div style={{ textAlign: 'center', padding: 24 }}>
           <p style={{ fontSize: 18, fontWeight: 600, color: THEME.correct }}>You Survived!</p>
-          <p style={{ color: THEME.textMuted, margin: '8px 0' }}>Final: ${resources.budget} budget, {resources.uptime}% uptime, {resources.users} users</p>
+          <p style={{ color: THEME.textMuted, margin: '8px 0' }}>Final: \${resources.budget} budget, {resources.uptime}% uptime, {resources.users} users</p>
           <button className="btn-primary" onClick={restart}>Play Again</button>
         </div>
       ) : (
