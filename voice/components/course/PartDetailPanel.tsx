@@ -17,6 +17,7 @@ interface PartDetailPanelProps {
   onClose: () => void;
   onStartLesson: () => void;
   onMarkMastered: () => void;
+  onRetryGame?: () => void;
   gameResult?: { config: RendererConfig; customCode?: string };
   gameLoading?: boolean;
   gameProgress?: string;
@@ -51,6 +52,7 @@ export default function PartDetailPanel({
   onClose,
   onStartLesson,
   onMarkMastered,
+  onRetryGame,
   gameResult,
   gameLoading,
   gameProgress,
@@ -385,9 +387,25 @@ export default function PartDetailPanel({
 
                   {/* Error state */}
                   {gameError && !gameLoading && (
-                    <p style={{ fontSize: 13, color: '#dc2626', margin: 0, textAlign: 'center' }}>
-                      Game generation failed. Your mastery has been recorded.
-                    </p>
+                    <div style={{ textAlign: 'center' }}>
+                      <p style={{ fontSize: 13, color: '#dc2626', margin: '0 0 12px' }}>
+                        Game generation failed. Your mastery has been recorded.
+                      </p>
+                      {onRetryGame && (
+                        <button onClick={onRetryGame} style={{
+                          padding: '8px 20px',
+                          background: '#1a1a1a',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 8,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}>
+                          Retry
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -414,8 +432,15 @@ export default function PartDetailPanel({
               )}
               {part.status === 'in_progress' && (
                 <>
-                  <button onClick={handleTestMe} style={primaryBtnStyle}>
-                    I've Read This — Test Me
+                  <button
+                    onClick={handleTestMe}
+                    disabled={part.isLoading || !part.content}
+                    style={{
+                      ...primaryBtnStyle,
+                      ...(part.isLoading || !part.content ? { opacity: 0.4, cursor: 'not-allowed' } : {}),
+                    }}
+                  >
+                    {part.isLoading ? 'Generating lesson...' : "I've Read This — Test Me"}
                   </button>
                   <button onClick={onClose} style={secondaryBtnStyle}>
                     Continue Later

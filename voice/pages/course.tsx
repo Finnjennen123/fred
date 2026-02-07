@@ -202,6 +202,7 @@ export default function CoursePage() {
                   [partId]: { ...prev[partId], progress: 'Revising...' },
                 }));
               } else if (event.event === 'complete') {
+                delete abortControllersRef.current[partId];
                 setGameStates(prev => ({
                   ...prev,
                   [partId]: {
@@ -213,6 +214,7 @@ export default function CoursePage() {
                 }));
                 return;
               } else if (event.event === 'error') {
+                delete abortControllersRef.current[partId];
                 setGameStates(prev => ({
                   ...prev,
                   [partId]: { loading: false, progress: '', error: true },
@@ -232,8 +234,29 @@ export default function CoursePage() {
           ...prev,
           [partId]: { loading: false, progress: '', error: true },
         }));
+      })
+      .finally(() => {
+        delete abortControllersRef.current[partId];
       });
   }, []);
+
+  const handleRetryGame = useCallback(() => {
+    if (!selectedPartId || !course) return;
+    // Clear old state so startGameGeneration can run
+    setGameStates(prev => {
+      const next = { ...prev };
+      delete next[selectedPartId];
+      return next;
+    });
+    // Find the part and re-trigger
+    for (const phase of course.phases) {
+      const part = phase.parts.find(p => p.id === selectedPartId);
+      if (part && part.content) {
+        startGameGeneration(selectedPartId, part);
+        break;
+      }
+    }
+  }, [selectedPartId, course, startGameGeneration]);
 
   const handleStartLesson = useCallback(() => {
     if (!selectedPartId || !selectedPart) return;
@@ -517,6 +540,7 @@ export default function CoursePage() {
             onClose={handleClosePanel}
             onStartLesson={handleStartLesson}
             onMarkMastered={handleMarkMastered}
+            onRetryGame={handleRetryGame}
             gameResult={selectedPartId ? gameStates[selectedPartId]?.result : undefined}
             gameLoading={selectedPartId ? gameStates[selectedPartId]?.loading : false}
             gameProgress={selectedPartId ? gameStates[selectedPartId]?.progress : ''}
