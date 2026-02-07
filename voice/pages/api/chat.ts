@@ -29,22 +29,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Resolve signed-in user (required to save personalization per-user)
-    const proto = (req.headers['x-forwarded-proto'] as string) || 'http'
-    const host = req.headers.host
-    const cookie = req.headers.cookie || ''
-    let userId: string | null = null
-    if (host) {
-      try {
-        const sessionRes = await fetch(`${proto}://${host}/api/auth/get-session`, {
-          headers: { cookie },
-        })
-        const sessionJson = await sessionRes.json()
-        userId = sessionJson?.user?.id ?? null
-      } catch (e) {
-        console.warn('Failed to resolve session for chat:', e)
-      }
-    }
+    // Auth disabled — no user resolution
+    const userId: string | null = null
 
     const { messages: clientMessages, phase: clientPhase, onboardingResult: clientOnboardingResult, forceComplete } = req.body as {
       messages: Message[]
@@ -90,7 +76,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const extractData = await callLLM({ messages: extractMessages, tools: [extractTool] })
       const extractMsg = extractData.choices?.[0]?.message
 
-      if (extractMsg?.tool_calls?.length > 0) {
+      if ((extractMsg?.tool_calls?.length ?? 0) > 0) {
         const args = JSON.parse(extractMsg.tool_calls[0].function.arguments)
         return res.status(200).json({
           type: 'complete',
