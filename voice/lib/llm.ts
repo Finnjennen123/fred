@@ -55,7 +55,7 @@ interface CallLLMParams {
 }
 
 function getProvider(): string {
-  return (process.env.LLM_PROVIDER || 'openrouter').toLowerCase();
+  return (process.env.LLM_PROVIDER || 'gemini').toLowerCase();
 }
 
 // ═══════════════════════════════════════════

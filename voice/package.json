@@ -9,8 +9,8 @@
   },
   "dependencies": {
     "@composio/core": "^0.6.3",
-    "@google/generative-ai": "^0.21.0",
     "@google/genai": "^1.0.0",
+    "@google/generative-ai": "^0.21.0",
     "@neondatabase/auth": "^0.2.0-beta.1",
     "@neondatabase/serverless": "^0.10.0",
     "@tailwindcss/postcss": "^4.1.18",
@@ -23,8 +23,10 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",
+    "sucrase": "^3.35.1",
     "tailwindcss": "^4.1.18",
-    "ws": "^8.19.0"
+    "ws": "^8.19.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
