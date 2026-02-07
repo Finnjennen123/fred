@@ -60,6 +60,7 @@ export default function CoursePage() {
     loading: boolean;
     progress: string;
     error: boolean;
+    errorMessage?: string;
     result?: { config: RendererConfig; customCode?: string };
   }>>({});
   const abortControllersRef = useRef<Record<string, AbortController>>({});
@@ -181,6 +182,9 @@ export default function CoursePage() {
             if (!dataStr) continue;
             try {
               const event = JSON.parse(dataStr);
+              if (event.event === 'validation_error') {
+                console.warn('[game-gen] Validation error:', event.data?.errors);
+              }
               if (event.event === 'spec_ready') {
                 setGameStates(prev => ({
                   ...prev,
@@ -214,10 +218,12 @@ export default function CoursePage() {
                 }));
                 return;
               } else if (event.event === 'error') {
+                const errMsg = event.data?.message || 'Unknown pipeline error';
+                console.error('[game-gen] Pipeline error:', errMsg);
                 delete abortControllersRef.current[partId];
                 setGameStates(prev => ({
                   ...prev,
-                  [partId]: { loading: false, progress: '', error: true },
+                  [partId]: { loading: false, progress: '', error: true, errorMessage: errMsg },
                 }));
                 return;
               }
@@ -229,10 +235,11 @@ export default function CoursePage() {
       })
       .catch((err) => {
         if (err instanceof DOMException && err.name === 'AbortError') return;
-        console.error('[game-gen] SSE error:', err);
+        const errMsg = err instanceof Error ? err.message : 'Network error';
+        console.error('[game-gen] SSE error:', errMsg);
         setGameStates(prev => ({
           ...prev,
-          [partId]: { loading: false, progress: '', error: true },
+          [partId]: { loading: false, progress: '', error: true, errorMessage: errMsg },
         }));
       })
       .finally(() => {
@@ -545,6 +552,7 @@ export default function CoursePage() {
             gameLoading={selectedPartId ? gameStates[selectedPartId]?.loading : false}
             gameProgress={selectedPartId ? gameStates[selectedPartId]?.progress : ''}
             gameError={selectedPartId ? gameStates[selectedPartId]?.error : false}
+            gameErrorMessage={selectedPartId ? gameStates[selectedPartId]?.errorMessage : undefined}
           />
         </motion.div>
 

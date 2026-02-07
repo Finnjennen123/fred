@@ -22,6 +22,7 @@ interface PartDetailPanelProps {
   gameLoading?: boolean;
   gameProgress?: string;
   gameError?: boolean;
+  gameErrorMessage?: string;
 }
 
 const statusLabels: Record<string, { label: string; color: string; bg: string }> = {
@@ -57,6 +58,7 @@ export default function PartDetailPanel({
   gameLoading,
   gameProgress,
   gameError,
+  gameErrorMessage,
 }: PartDetailPanelProps) {
   const [loadingStep, setLoadingStep] = useState(0);
   // User-controlled: whether to show the game/loading view vs article
@@ -388,9 +390,14 @@ export default function PartDetailPanel({
                   {/* Error state */}
                   {gameError && !gameLoading && (
                     <div style={{ textAlign: 'center' }}>
-                      <p style={{ fontSize: 13, color: '#dc2626', margin: '0 0 12px' }}>
-                        Game generation failed. Your mastery has been recorded.
+                      <p style={{ fontSize: 13, color: '#dc2626', margin: '0 0 8px' }}>
+                        Game generation failed.
                       </p>
+                      {gameErrorMessage && (
+                        <p style={{ fontSize: 11, color: '#999', margin: '0 0 12px', fontFamily: 'monospace', maxWidth: 360, marginLeft: 'auto', marginRight: 'auto', wordBreak: 'break-word' }}>
+                          {gameErrorMessage}
+                        </p>
+                      )}
                       {onRetryGame && (
                         <button onClick={onRetryGame} style={{
                           padding: '8px 20px',

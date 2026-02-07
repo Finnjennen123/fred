@@ -241,11 +241,14 @@ async function* generateCustomGame(
 
   let code: string
   try {
+    console.log(`[GAME_GEN] Starting LLM call for custom game, topic: ${topic}`)
     const raw = await llmCall(system, user, buildComplete)
     code = stripCodeFences(raw)
+    console.log(`[GAME_GEN] LLM returned ${code.split('\n').length} lines of code`)
     await trace.flush()
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error'
+    console.error(`[GAME_GEN] LLM call FAILED: ${msg}`)
     trace.addStep('error', { error: `Custom build failed: ${msg}` })
     await trace.finalize('error')
     yield { event: 'error', data: { message: `Failed to generate custom game: ${msg}` } }
@@ -257,55 +260,68 @@ async function* generateCustomGame(
   // Step 2: Validate + Test-Render — zero LLM calls
   const validation = validateCustomCode(code)
   if (!validation.valid) {
+    console.error(`[GAME_GEN] Validation FAILED:`, validation.errors)
     trace.addStep('validation', { result: { valid: false, errors: validation.errors } })
     yield { event: 'validation_error', data: { iteration: 1, errors: validation.errors } }
 
     // Try to fix with one LLM call
+    console.log(`[GAME_GEN] Attempting fix for validation errors...`)
     const fixResult = await attemptCustomFix(code, validation.errors.join('. '), trace)
     if (fixResult) {
       code = fixResult
+      console.log(`[GAME_GEN] Fix applied, ${code.split('\n').length} lines`)
     } else {
-      // Emit anyway — error boundary handles it
+      console.error(`[GAME_GEN] Fix FAILED, no result returned`)
       trace.addStep('error', { error: 'Custom game has validation errors after fix attempt' })
       await trace.finalize('error')
       yield { event: 'error', data: { message: `Custom game has validation errors: ${validation.errors.join('; ')}` } }
       return
     }
+  } else {
+    console.log(`[GAME_GEN] Validation passed`)
   }
 
   // Transpile + wrap
   let wrappedCode: string
   const transpiled = transpileTSX(code)
   if (!transpiled.success) {
+    console.error(`[GAME_GEN] Transpilation FAILED: ${transpiled.error}`)
     trace.addStep('validation', { result: { valid: false, errors: [transpiled.error!] } })
     yield { event: 'validation_error', data: { iteration: 1, errors: [transpiled.error!] } }
 
+    console.log(`[GAME_GEN] Attempting fix for transpilation error...`)
     const fixResult = await attemptCustomFix(code, `Transpilation error: ${transpiled.error}`, trace)
     if (fixResult) {
       code = fixResult
       const retranspiled = transpileTSX(code)
       if (!retranspiled.success) {
+        console.error(`[GAME_GEN] Transpilation STILL FAILED after fix: ${retranspiled.error}`)
         await trace.finalize('error')
         yield { event: 'error', data: { message: `Transpilation failed after fix: ${retranspiled.error}` } }
         return
       }
+      console.log(`[GAME_GEN] Transpilation succeeded after fix`)
       wrappedCode = wrapForClientExecution(retranspiled.code!)
     } else {
+      console.error(`[GAME_GEN] Fix FAILED for transpilation error`)
       await trace.finalize('error')
       yield { event: 'error', data: { message: `Transpilation error: ${transpiled.error}` } }
       return
     }
   } else {
+    console.log(`[GAME_GEN] Transpilation passed`)
     wrappedCode = wrapForClientExecution(transpiled.code!)
   }
 
   // Test-render the wrapped code
   const renderResult = testRender(wrappedCode)
   if (!renderResult.success) {
+    console.error(`[GAME_GEN] Test render FAILED: ${renderResult.error}`)
     trace.addStep('test_render', { result: { success: false, error: renderResult.error } })
     yield { event: 'validation_error', data: { iteration: 1, errors: [`Test render failed: ${renderResult.error}`] } }
 
     // Try to fix with one LLM call
+    console.log(`[GAME_GEN] Attempting fix for render error...`)
     const fixResult = await attemptCustomFix(code, `Runtime error during render: ${renderResult.error}`, trace)
     if (fixResult) {
       code = fixResult
@@ -315,17 +331,22 @@ async function* generateCustomGame(
         const retest = testRender(rewrapped)
         if (retest.success) {
           wrappedCode = rewrapped
+          console.log(`[GAME_GEN] Test render passed after fix`)
           trace.addStep('test_render', { result: { success: true } })
         } else {
-          // Emit anyway with warning — error boundary catches runtime crashes
+          console.error(`[GAME_GEN] Test render STILL FAILED after fix: ${retest.error} — emitting anyway`)
           trace.addStep('test_render', { result: { success: false, error: retest.error, note: 'emitting despite error' } })
           wrappedCode = rewrapped
         }
+      } else {
+        console.error(`[GAME_GEN] Re-transpilation failed after render fix: ${retranspiled.error}`)
       }
+    } else {
+      console.error(`[GAME_GEN] Fix FAILED for render error — emitting original code`)
     }
     // If fix failed, still emit with the original code — error boundary handles it
   } else {
-    trace.addStep('test_render', { result: { success: true } })
+    console.log(`[GAME_GEN] Test render passed`)
   }
 
   // Success — emit the complete game

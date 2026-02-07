@@ -88,8 +88,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Flush headers
   res.flushHeaders()
 
+  console.log(`[GAME_API] Starting game generation, topic: ${effectiveTopic}, forceCustom: ${input.forceCustom}, profile: ${profile.name}`)
+
   try {
     for await (const event of generateGame(input)) {
+      if (event.event === 'error') {
+        console.error(`[GAME_API] Pipeline error event:`, event.data)
+      } else if (event.event === 'complete') {
+        console.log(`[GAME_API] Pipeline complete, hasCustomCode: ${!!event.data?.customCode}`)
+      }
+
       const data = JSON.stringify(event)
       res.write(`data: ${data}\n\n`)
 
@@ -104,6 +112,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
   } catch (err) {
+    console.error(`[GAME_API] Pipeline THREW:`, err instanceof Error ? err.message : err)
     const errorEvent = JSON.stringify({
       event: 'error',
       data: { message: err instanceof Error ? err.message : 'Pipeline failed' },
