@@ -53,7 +53,9 @@ export class PipelineTrace {
     }
 
     // Pre-create the logs directory so flush never waits on mkdir
-    this.dirReady = mkdir(LOGS_DIR, { recursive: true }).catch(() => {})
+    this.dirReady = mkdir(LOGS_DIR, { recursive: true })
+      .then(() => {})
+      .catch(() => {})
     // Stable filename — flush overwrites in place rather than creating new files
     this.filepath = path.join(LOGS_DIR, `trace-${ts}-${runId}.json`)
   }
