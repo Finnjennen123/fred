@@ -125,22 +125,28 @@ function convertToolsForGemini(tools: Tool[]) {
   return [{ functionDeclarations }];
 }
 
-function convertGeminiResponse(response: { text?: string | null; functionCalls?: Array<{ name: string; args: Record<string, unknown> }> | null }): LLMResponse {
+function convertGeminiResponse(response: {
+  text?: string | null;
+  functionCalls?: Array<{ name?: string; args?: Record<string, unknown> }> | null;
+}): LLMResponse {
   const text = response.text;
-  const functionCalls = response.functionCalls;
+  const functionCalls =
+    (response.functionCalls || []).filter(
+      (fc): fc is { name: string; args?: Record<string, unknown> } => typeof fc?.name === 'string' && fc.name.length > 0
+    ) || [];
 
   const message: ResponseMessage = {
     role: 'assistant',
     content: text || null,
   };
 
-  if (functionCalls && functionCalls.length > 0) {
+  if (functionCalls.length > 0) {
     message.tool_calls = functionCalls.map((fc, index) => ({
       id: `call_${index}`,
       type: 'function' as const,
       function: {
         name: fc.name,
-        arguments: JSON.stringify(fc.args),
+        arguments: JSON.stringify(fc.args || {}),
       },
     }));
   }
@@ -150,7 +156,7 @@ function convertGeminiResponse(response: { text?: string | null; functionCalls?:
       {
         index: 0,
         message,
-        finish_reason: functionCalls ? 'tool_calls' : 'stop',
+        finish_reason: functionCalls.length > 0 ? 'tool_calls' : 'stop',
       },
     ],
   };
