@@ -248,7 +248,7 @@ Respond ONLY with valid JSON, no markdown, no explanation:
 
 export const onboardingTools = [
   {
-    type: "function" as const,
+    type: "function",
     function: {
       name: "complete_onboarding",
       description: "Call this when you understand what the user wants to learn and why. The 'why' can be simple (curiosity) or specific (for work). Confirm with the user before calling.",
@@ -276,7 +276,7 @@ export const onboardingTools = [
 
 export const profilingTools = [
   {
-    type: "function" as const,
+    type: "function",
     function: {
       name: "complete_profiling",
       description: "Call this when you have enough information to make decisions about course structure. You should know: where to start (assumed knowledge), how deep to go, and what to focus on. Include a friendly closing message to the user.",

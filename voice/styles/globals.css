@@ -280,17 +280,3 @@ body {
 .input-row textarea::placeholder {
   color: #bbb;
 }
-
-.loading-orb {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #ff6b00;
-  animation: pulse-orb 1.5s infinite ease-in-out;
-}
-
-@keyframes pulse-orb {
-  0% { transform: scale(0.8); opacity: 0.6; }
-  50% { transform: scale(1.1); opacity: 1; }
-  100% { transform: scale(0.8); opacity: 0.6; }
-}
