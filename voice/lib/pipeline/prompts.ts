@@ -43,15 +43,27 @@ export function buildSpecPrompt(profile: DigitalCloneProfile, topic?: string, ar
 
   const system = `You are an expert educational game designer. Your job is to design a specific, targeted learning game for a student based on their digital profile.
 
-## Design Principles
-1. **Frontier testing**: Target the edge of what the student knows. Don't test what they've mastered; probe where their understanding breaks down.
-2. **Signal density**: Every interaction should reveal something about the student's understanding. No filler rounds.
-3. **Engagement through agency**: Give the student meaningful choices, not just recall questions.
-4. **Misconception targeting**: If the profile lists specific misconceptions, design the game to surface and challenge them.${articleSystemNote}
+## Design Principles — REAL GAMES, Not Worksheets
+1. **Think like a game designer, not a teacher**: Design games people would ACTUALLY PLAY for fun. Think tower defense, puzzle games, resource management, factory builders, survival challenges, real-time strategy. Then embed the educational content INTO that mechanic. The learning should emerge from gameplay, not be bolted on.
+2. **BANNED formats**: Multiple choice, pick-from-a-list, click-to-reveal, simple drag-to-reorder, flashcards, fill-in-the-blank. These are worksheets, not games. If a player wouldn't choose to play it for fun, redesign it.
+3. **Real game mechanics to use**:
+   - **Tower defense / placement strategy**: Place defenses on a grid, enemies (wrong answers, bugs, threats) move through — student must position knowledge strategically
+   - **Factory / pipeline builder**: Connect processing nodes, feed inputs through, watch outputs — student builds working systems
+   - **Survival / resource management**: Limited resources (time, energy, budget), must allocate wisely across competing priorities while a system runs
+   - **Puzzle / Tetris-style**: Pieces fall or appear, student must categorize/place them under time pressure before they stack up
+   - **Investigation / detective**: Explore a scene, collect clues, build a case — student pieces together understanding from evidence
+   - **Simulation sandbox**: Tweak parameters of a live system (economy, ecosystem, physics), watch it evolve in real-time, try to reach a target state
+   - **Timed arcade**: Elements spawn and move on screen, student must react — catch correct items, deflect wrong ones, maintain a system under pressure
+   - **Strategy / territory**: Claim territory on a map by answering domain questions, defend against counter-attacks
+4. **Continuous state, not round-by-round**: Prefer games with persistent state that evolves (health bars, resource pools, growing systems, score multipliers, combo chains) over isolated rounds. Each action should affect what comes next.
+5. **Frontier testing**: Target the edge of what the student knows. Probe where understanding breaks down.
+6. **Misconception targeting**: If the profile lists misconceptions, design the game to make those misconceptions COSTLY — the student naturally discovers why they're wrong through gameplay consequences.${articleSystemNote}
 
 ## Available Game Templates
 
 ${catalog}
+
+IMPORTANT: STRONGLY prefer 'custom' gameType. The templates above are simple formats. You should almost ALWAYS choose 'custom' and invent a real game mechanic. Only fall back to templates if the topic genuinely fits a simple format.
 
 ## Output Format
 
@@ -317,9 +329,22 @@ export function buildCustomGamePrompt(profile: DigitalCloneProfile, topic?: stri
 } {
   const system = `You are an expert educational game designer AND React developer. Your job is to design AND build a complete, novel, interactive learning game as a single React component.
 
-## CRITICAL: Be Creative
-Do NOT make a standard multiple-choice quiz. Do NOT make "pick the right answer from 3 options."
-Invent a novel game mechanic. Think: drag-to-sort, spatial puzzles, timed challenges, matching games, interactive diagrams, code-tracing simulations, fill-in-the-blank with validation, debate simulators, categorization with drag targets, sequencing challenges, etc.
+## CRITICAL: Build a REAL GAME — Not an Educational Activity
+You are building something people would play for FUN. The educational content is embedded inside a genuinely engaging game mechanic. If someone wouldn't voluntarily play this outside of school, it's not good enough.
+
+**BANNED**: Multiple choice, click-to-reveal, simple drag-to-reorder, matching pairs, flashcard formats, fill-in-the-blank. These are digital worksheets.
+
+**THINK LIKE THIS**: What real game genre fits this topic?
+- **Tower defense**: Place knowledge-nodes to intercept waves of problems/misconceptions flowing across the screen
+- **Factory builder**: Wire together processing stages, feed inputs, watch if the pipeline produces correct outputs
+- **Falling-piece puzzle (Tetris-style)**: Items drop from above, student must quickly categorize or place them before they pile up. Speed increases.
+- **Resource management / survival**: Student has limited HP/energy/budget. Events appear that cost or reward resources. Manage tradeoffs to survive N turns.
+- **Live simulation**: A system runs in real-time (economy, ecosystem, code execution, physics). Student tweaks parameters to reach a target state or prevent collapse.
+- **Arcade / reflex**: Elements move across the screen. Student clicks to catch correct ones, avoid wrong ones. Combo multipliers for streaks.
+- **Investigation / detective**: Examine evidence, form a hypothesis, test it. Clues unlock as the student demonstrates understanding.
+- **Territory control**: A map/grid where student claims cells by demonstrating knowledge. Opponent AI pushes back.
+
+**KEY PRINCIPLE**: The game should have continuous, evolving state — health bars, score multipliers, resource pools, combo chains, timers, things that MOVE on their own. Not just "answer 5 questions in sequence."
 
 ## Runtime Environment
 Your code runs inside a sandboxed \`new Function()\` context. The following globals are injected automatically:
@@ -359,7 +384,7 @@ Feedback: prediction-result correct, prediction-result incorrect
 15. Use subtle borders (1px solid THEME.border) not heavy outlines
 16. Use subtle shadows (0 1px 3px rgba(0,0,0,0.06)) for cards
 17. Primary buttons: dark bg (#1a1a1a), white text. NOT orange bg.
-18. Keep the design minimal and warm — this is a learning app, not a gaming app
+18. Keep the visual design minimal and warm, but make the GAMEPLAY feel like a real game with stakes, tension, and momentum
 
 ## ERRORS THAT WILL REJECT YOUR CODE — Read carefully
 1. **FUNCTION SIGNATURE**: Your component MUST be \`export default function GameName({ rounds })\` — the \`{ rounds }\` destructured prop is REQUIRED. Code without it is automatically rejected.
@@ -379,271 +404,360 @@ export default function YourGameName({ rounds }) {
 
 ## Few-Shot Examples
 
-### Example 1: Drag-and-Sort Challenge
+### Example 1: Timed Arcade — Catch Falling Concepts
+A real-time game where items fall from the top of the screen and the player must click/tap the correct ones before they reach the bottom. Wrong clicks cost HP. Speed increases over time. Combo multipliers for streaks.
 \`\`\`
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 
-export default function SortingLab({ rounds }) {
-  const levels = [
+export default function ConceptCatcher({ rounds }) {
+  const LEVELS = [
     {
-      title: "Sort by Execution Order",
-      instruction: "Drag these JavaScript operations into the order they execute",
-      items: ["console.log('start')", "setTimeout(() => console.log('timeout'), 0)", "Promise.resolve().then(() => console.log('promise'))", "console.log('end')"],
-      correctOrder: [0, 3, 2, 1],
-      explanation: "Synchronous code runs first, then microtasks (promises), then macrotasks (setTimeout)"
+      title: "Catch the Pure Functions",
+      instruction: "Click functions that are PURE. Let impure ones fall. Wrong clicks cost a life!",
+      items: [
+        { text: "const add = (a, b) => a + b", correct: true },
+        { text: "const now = () => Date.now()", correct: false },
+        { text: "const upper = s => s.toUpperCase()", correct: true },
+        { text: "let count = 0; const inc = () => ++count", correct: false },
+        { text: "const head = arr => arr[0]", correct: true },
+        { text: "const rand = () => Math.random()", correct: false },
+        { text: "const mul = (x, y) => x * y", correct: true },
+        { text: "const log = x => { console.log(x); return x }", correct: false },
+        { text: "const negate = n => -n", correct: true },
+        { text: "const save = data => db.write(data)", correct: false },
+      ],
+      spawnInterval: 2200,
+      fallDuration: 6000,
     },
     {
-      title: "Sort by Memory Size",
-      instruction: "Order these data types from smallest to largest typical memory footprint",
-      items: ["boolean", "number (float64)", "empty string", "empty array", "object with 10 keys"],
-      correctOrder: [0, 2, 1, 3, 4],
-      explanation: "Booleans are 4 bytes, empty strings ~40 bytes, floats 8 bytes, arrays have overhead, objects scale with properties"
+      title: "Catch O(1) Operations",
+      instruction: "Click operations with O(1) time complexity. Let the rest fall!",
+      items: [
+        { text: "Array index access arr[5]", correct: true },
+        { text: "Hash map lookup map.get(key)", correct: true },
+        { text: "Binary search on sorted array", correct: false },
+        { text: "Push to end of array", correct: true },
+        { text: "Find min in unsorted array", correct: false },
+        { text: "Stack peek / pop", correct: true },
+        { text: "Sort an array", correct: false },
+        { text: "Linked list traversal", correct: false },
+        { text: "Dequeue from a queue", correct: true },
+        { text: "Check if array contains value", correct: false },
+      ],
+      spawnInterval: 2000,
+      fallDuration: 5500,
     }
   ]
 
-  const [level, setLevel] = useState(0)
-  const [items, setItems] = useState(levels[0].items.map((text, i) => ({ text, id: i })))
-  const [dragIdx, setDragIdx] = useState(null)
-  const [submitted, setSubmitted] = useState(false)
+  const [levelIdx, setLevelIdx] = useState(0)
+  const [falling, setFalling] = useState([])
+  const [hp, setHp] = useState(5)
   const [score, setScore] = useState(0)
+  const [combo, setCombo] = useState(0)
+  const [bestCombo, setBestCombo] = useState(0)
+  const [gameOver, setGameOver] = useState(false)
+  const [itemQueue, setItemQueue] = useState([])
+  const [started, setStarted] = useState(false)
+  const nextId = useRef(0)
+  const intervalRef = useRef(null)
+  const frameRef = useRef(null)
+  const fallingRef = useRef([])
+  const hpRef = useRef(5)
 
-  const current = levels[level]
+  const level = LEVELS[levelIdx]
 
-  const moveItem = (fromIdx, toIdx) => {
-    if (submitted) return
-    const next = [...items]
-    const [moved] = next.splice(fromIdx, 1)
-    next.splice(toIdx, 0, moved)
-    setItems(next)
-  }
+  const startLevel = useCallback(() => {
+    const shuffled = [...level.items].sort(() => Math.random() - 0.5)
+    setItemQueue(shuffled)
+    setFalling([])
+    fallingRef.current = []
+    setStarted(true)
+    setGameOver(false)
+    setHp(5)
+    hpRef.current = 5
+    setScore(0)
+    setCombo(0)
+    setBestCombo(0)
+    nextId.current = 0
+  }, [level])
 
-  const checkAnswer = () => {
-    const isCorrect = items.every((item, idx) => item.id === current.correctOrder[idx])
-    if (isCorrect) setScore(s => s + 1)
-    setSubmitted(true)
-  }
-
-  const nextLevel = () => {
-    const next = level + 1
-    if (next < levels.length) {
-      setLevel(next)
-      setItems(levels[next].items.map((text, i) => ({ text, id: i })))
-      setSubmitted(false)
+  useEffect(() => {
+    if (!started || gameOver) return
+    let queueIdx = 0
+    const spawn = () => {
+      if (queueIdx >= itemQueue.length) { clearInterval(intervalRef.current); return }
+      const item = itemQueue[queueIdx++]
+      const id = nextId.current++
+      const xPos = 10 + Math.random() * 60
+      const newItem = { ...item, id, x: xPos, spawnTime: Date.now() }
+      fallingRef.current = [...fallingRef.current, newItem]
+      setFalling([...fallingRef.current])
     }
+    intervalRef.current = setInterval(spawn, level.spawnInterval)
+    spawn()
+    return () => clearInterval(intervalRef.current)
+  }, [started, gameOver, itemQueue, level.spawnInterval])
+
+  useEffect(() => {
+    if (!started || gameOver) return
+    const tick = () => {
+      const now = Date.now()
+      let hpLost = 0
+      const alive = fallingRef.current.filter(item => {
+        const elapsed = now - item.spawnTime
+        if (elapsed > level.fallDuration) {
+          if (item.correct) hpLost++
+          return false
+        }
+        return true
+      })
+      if (hpLost > 0) {
+        const newHp = Math.max(0, hpRef.current - hpLost)
+        hpRef.current = newHp
+        setHp(newHp)
+        setCombo(0)
+        if (newHp <= 0) { setGameOver(true); return }
+      }
+      fallingRef.current = alive
+      setFalling([...alive])
+      frameRef.current = requestAnimationFrame(tick)
+    }
+    frameRef.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frameRef.current)
+  }, [started, gameOver, level.fallDuration])
+
+  const handleClick = (item) => {
+    if (gameOver) return
+    if (item.correct) {
+      setScore(s => s + (1 + combo))
+      setCombo(c => { const n = c + 1; setBestCombo(b => Math.max(b, n)); return n })
+    } else {
+      const newHp = Math.max(0, hpRef.current - 1)
+      hpRef.current = newHp
+      setHp(newHp)
+      setCombo(0)
+      if (newHp <= 0) setGameOver(true)
+    }
+    fallingRef.current = fallingRef.current.filter(f => f.id !== item.id)
+    setFalling([...fallingRef.current])
   }
 
-  const isCorrect = submitted && items.every((item, idx) => item.id === current.correctOrder[idx])
-  const done = level >= levels.length - 1 && submitted
+  const allDone = started && !gameOver && falling.length === 0 && itemQueue.length > 0
 
   return (
-    <div className="game-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h2 className="game-title" style={{ margin: 0 }}>{current.title}</h2>
+    <div className="game-container" style={{ position: 'relative', minHeight: 420, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <h2 className="game-title" style={{ margin: 0 }}>{level.title}</h2>
         <div className="game-stats">
+          <div className="stat"><span className="stat-value" style={{ color: hp <= 2 ? THEME.incorrect : THEME.text }}>{"❤".repeat(hp)}</span><span className="stat-label">HP</span></div>
           <div className="stat"><span className="stat-value">{score}</span><span className="stat-label">Score</span></div>
-          <div className="stat"><span className="stat-value">{level + 1}/{levels.length}</span><span className="stat-label">Level</span></div>
+          {combo > 1 && <div className="stat"><span className="stat-value" style={{ color: THEME.accent }}>x{combo}</span><span className="stat-label">Combo</span></div>}
         </div>
       </div>
-      <p className="game-subtitle">{current.instruction}</p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', margin: '1.5rem 0' }}>
-        {items.map((item, idx) => (
-          <div
-            key={item.id}
-            draggable={!submitted}
-            onDragStart={() => setDragIdx(idx)}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => { if (dragIdx !== null) moveItem(dragIdx, idx); setDragIdx(null) }}
-            style={{
-              padding: '12px 16px',
-              background: submitted
-                ? (item.id === current.correctOrder[idx] ? THEME.correctBg : THEME.incorrectBg)
-                : (dragIdx === idx ? THEME.surfaceLight : THEME.surface),
-              border: \`1px solid \${submitted ? (item.id === current.correctOrder[idx] ? THEME.correct : THEME.incorrect) : THEME.border}\`,
-              borderRadius: '10px',
-              cursor: submitted ? 'default' : 'grab',
-              color: THEME.text,
-              fontFamily: "'Inter', sans-serif",
-              fontSize: '13px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <span style={{ color: THEME.textMuted, fontWeight: 600, minWidth: '24px' }}>{idx + 1}.</span>
-            <code style={{ fontFamily: 'monospace' }}>{item.text}</code>
-          </div>
-        ))}
-      </div>
-      {submitted && (
-        <div className={isCorrect ? "prediction-result correct" : "prediction-result incorrect"} style={{ marginBottom: '1rem' }}>
-          <strong>{isCorrect ? "Correct!" : "Not quite."}</strong> {current.explanation}
+      <p className="game-subtitle">{level.instruction}</p>
+      {!started ? (
+        <div style={{ textAlign: 'center', marginTop: 60 }}>
+          <button className="btn-primary" onClick={startLevel}>Start</button>
+        </div>
+      ) : (
+        <div style={{ position: 'relative', height: 320, border: \`1px solid \${THEME.border}\`, borderRadius: 14, marginTop: 12, background: THEME.surface, overflow: 'hidden' }}>
+          {falling.map(item => {
+            const elapsed = Date.now() - item.spawnTime
+            const pct = Math.min(elapsed / level.fallDuration, 1)
+            return (
+              <div key={item.id} onClick={() => handleClick(item)} style={{
+                position: 'absolute', left: \`\${item.x}%\`, top: \`\${pct * 85}%\`,
+                transform: 'translateX(-50%)', padding: '8px 14px', background: THEME.white,
+                border: \`1px solid \${THEME.border}\`, borderRadius: 10, cursor: 'pointer',
+                fontSize: 12, fontFamily: 'monospace', color: THEME.text, whiteSpace: 'nowrap',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.08)', transition: 'top 0.3s linear',
+                maxWidth: '80%', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>{item.text}</div>
+            )
+          })}
+          {gameOver && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(250,249,247,0.92)' }}>
+              <p style={{ fontSize: 20, fontWeight: 600, color: THEME.text }}>Game Over</p>
+              <p style={{ color: THEME.textMuted, margin: '8px 0 16px' }}>Score: {score} | Best combo: x{bestCombo}</p>
+              <button className="btn-primary" onClick={startLevel}>Retry</button>
+              {levelIdx < LEVELS.length - 1 && score >= 5 && <button className="btn-secondary" onClick={() => { setLevelIdx(l => l + 1); setStarted(false) }} style={{ marginTop: 8 }}>Next Level</button>}
+            </div>
+          )}
+          {allDone && !gameOver && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(250,249,247,0.92)' }}>
+              <p style={{ fontSize: 20, fontWeight: 600, color: THEME.correct }}>Level Clear!</p>
+              <p style={{ color: THEME.textMuted, margin: '8px 0 16px' }}>Score: {score} | Best combo: x{bestCombo}</p>
+              {levelIdx < LEVELS.length - 1 ? <button className="btn-primary" onClick={() => { setLevelIdx(l => l + 1); setStarted(false) }}>Next Level</button> : <p style={{ color: THEME.accent, fontWeight: 600 }}>All levels complete!</p>}
+            </div>
+          )}
         </div>
       )}
-      <div className="game-actions">
-        {!submitted && <button className="btn-primary" onClick={checkAnswer}>Check Order</button>}
-        {submitted && !done && <button className="btn-primary" onClick={nextLevel}>Next Level</button>}
-        {done && <p style={{ color: THEME.accent, fontWeight: 600 }}>Complete! Final score: {score}/{levels.length}</p>}
-      </div>
     </div>
   )
 }
 \`\`\`
 
-### Example 2: Interactive Matching Game
+### Example 2: Resource-Management Survival
+The student manages limited resources while events force tradeoffs. Each decision has consequences that compound.
 \`\`\`
 import React, { useState, useCallback } from 'react'
 
-export default function MatchingPairs({ rounds }) {
-  const levels = [
+export default function SystemSurvival({ rounds }) {
+  const SCENARIOS = [
     {
-      title: "Match the Logical Fallacy",
-      instruction: "Connect each argument to the fallacy it commits",
-      left: [
-        "Everyone is buying crypto, so it must be a good investment",
-        "You can't prove ghosts don't exist, so they must be real",
-        "My grandfather smoked and lived to 95, so smoking isn't harmful",
-        "If we allow students to redo tests, next they'll want to skip them entirely"
-      ],
-      right: [
-        "Bandwagon fallacy",
-        "Argument from ignorance",
-        "Anecdotal evidence",
-        "Slippery slope"
-      ],
-      correctPairs: { 0: 0, 1: 1, 2: 2, 3: 3 }
-    },
-    {
-      title: "Match the Time Complexity",
-      instruction: "Match each operation to its Big-O complexity",
-      left: [
-        "Binary search on sorted array",
-        "Iterating through a linked list",
-        "Hash table lookup (average)",
-        "Sorting with merge sort"
-      ],
-      right: [
-        "O(log n)",
-        "O(n)",
-        "O(1)",
-        "O(n log n)"
-      ],
-      correctPairs: { 0: 0, 1: 1, 2: 2, 3: 3 }
+      title: "Server Scaling Crisis",
+      intro: "Your web app is growing. You have a limited budget. Survive 8 events without crashing.",
+      startResources: { budget: 100, uptime: 100, users: 50 },
+      events: [
+        { text: "Traffic spike! Users doubled overnight.", choices: [
+          { label: "Add more servers (+$30, +20 capacity)", effect: { budget: -30, uptime: 10, users: 20 }, feedback: "Vertical scaling works short-term but gets expensive." },
+          { label: "Enable caching layer (+$10, moderate relief)", effect: { budget: -10, uptime: 5, users: 10 }, feedback: "Smart — caching reduces load without scaling compute." },
+          { label: "Do nothing (save money, risk downtime)", effect: { budget: 0, uptime: -25, users: -10 }, feedback: "Risky. Users are hitting timeouts and leaving." },
+        ]},
+        { text: "Database queries are slow. P99 latency at 2 seconds.", choices: [
+          { label: "Add read replicas (+$25)", effect: { budget: -25, uptime: 15, users: 5 }, feedback: "Read replicas help with read-heavy loads." },
+          { label: "Add indexes to hot queries (+$5)", effect: { budget: -5, uptime: 20, users: 5 }, feedback: "Excellent — indexing is cheap and high-impact." },
+          { label: "Upgrade to bigger DB instance (+$40)", effect: { budget: -40, uptime: 10, users: 0 }, feedback: "Throwing hardware at it works but burns budget fast." },
+        ]},
+        { text: "A deploy introduced a memory leak. RAM usage climbing.", choices: [
+          { label: "Rollback immediately (+reliability, -feature)", effect: { budget: 0, uptime: 15, users: -5 }, feedback: "Fast rollback is the right call for a memory leak." },
+          { label: "Hot-fix in production", effect: { budget: -5, uptime: -10, users: 0 }, feedback: "Hot-fixing a memory leak under pressure often makes it worse." },
+          { label: "Restart servers every hour as a bandaid", effect: { budget: -10, uptime: -5, users: -10 }, feedback: "This masks the problem. Users notice the periodic drops." },
+        ]},
+        { text: "Security audit found an SQL injection vulnerability.", choices: [
+          { label: "Parameterize all queries immediately (+$15)", effect: { budget: -15, uptime: 5, users: 5 }, feedback: "Correct fix. Parameterized queries prevent SQL injection." },
+          { label: "Add a WAF rule to block suspicious input (+$10)", effect: { budget: -10, uptime: 0, users: 0 }, feedback: "WAF helps but is a bandaid — the vulnerability still exists." },
+          { label: "Deprioritize — no breach has happened yet", effect: { budget: 0, uptime: 0, users: -15 }, feedback: "Terrible idea. When a breach happens, you lose trust." },
+        ]},
+        { text: "Your lead engineer quit. Team velocity dropped 40%.", choices: [
+          { label: "Hire a senior contractor (+$35)", effect: { budget: -35, uptime: 5, users: 5 }, feedback: "Expensive but maintains velocity." },
+          { label: "Redistribute work among existing team", effect: { budget: 0, uptime: -10, users: 0 }, feedback: "Realistic but the team is now overloaded." },
+          { label: "Pause new features, focus on stability", effect: { budget: 5, uptime: 10, users: -5 }, feedback: "Smart call. Stability over growth when understaffed." },
+        ]},
+        { text: "A competitor launched a similar product. Users comparing.", choices: [
+          { label: "Ship the big feature early (risky deploy)", effect: { budget: -10, uptime: -15, users: 20 }, feedback: "Rushing features creates tech debt and bugs." },
+          { label: "Focus on reliability — let uptime speak", effect: { budget: 0, uptime: 10, users: 5 }, feedback: "Reliability is a competitive advantage." },
+          { label: "Cut prices to retain users (-$20 revenue)", effect: { budget: -20, uptime: 0, users: 10 }, feedback: "Price wars hurt margins. Hard to reverse." },
+        ]},
+        { text: "Cloud provider announces 15% price increase next month.", choices: [
+          { label: "Optimize resource usage now (+$5 savings)", effect: { budget: 10, uptime: 0, users: 0 }, feedback: "Proactive optimization — good engineering practice." },
+          { label: "Migrate to a different provider (+$20 upfront)", effect: { budget: -20, uptime: -5, users: 0 }, feedback: "Migration is disruptive but can pay off long-term." },
+          { label: "Absorb the cost increase", effect: { budget: -15, uptime: 0, users: 0 }, feedback: "Sometimes the simplest option. But watch the budget." },
+        ]},
+        { text: "Black Friday incoming. Expected 5x normal traffic.", choices: [
+          { label: "Pre-scale everything (+$30)", effect: { budget: -30, uptime: 20, users: 25 }, feedback: "Pre-scaling for known events is best practice." },
+          { label: "Set up auto-scaling rules (+$15)", effect: { budget: -15, uptime: 10, users: 15 }, feedback: "Auto-scaling is efficient but has cold-start delays." },
+          { label: "Hope current capacity holds", effect: { budget: 0, uptime: -30, users: -20 }, feedback: "It did not hold. Major outage during peak traffic." },
+        ]},
+      ]
     }
   ]
 
-  const [level, setLevel] = useState(0)
-  const [selectedLeft, setSelectedLeft] = useState(null)
-  const [matches, setMatches] = useState({})
-  const [submitted, setSubmitted] = useState(false)
-  const [score, setScore] = useState(0)
+  const scenario = SCENARIOS[0]
+  const [eventIdx, setEventIdx] = useState(0)
+  const [resources, setResources] = useState(scenario.startResources)
+  const [lastFeedback, setLastFeedback] = useState(null)
+  const [history, setHistory] = useState([])
+  const [dead, setDead] = useState(false)
 
-  const current = levels[level]
-
-  const handleLeftClick = (idx) => {
-    if (submitted) return
-    setSelectedLeft(selectedLeft === idx ? null : idx)
-  }
-
-  const handleRightClick = useCallback((idx) => {
-    if (submitted || selectedLeft === null) return
-    setMatches(prev => ({ ...prev, [selectedLeft]: idx }))
-    setSelectedLeft(null)
-  }, [submitted, selectedLeft])
-
-  const checkAnswers = () => {
-    let correct = 0
-    for (const [left, right] of Object.entries(current.correctPairs)) {
-      if (matches[left] === right) correct++
+  const handleChoice = useCallback((choice) => {
+    const newRes = {
+      budget: Math.max(0, resources.budget + choice.effect.budget),
+      uptime: Math.min(100, Math.max(0, resources.uptime + choice.effect.uptime)),
+      users: Math.max(0, resources.users + choice.effect.users),
     }
-    setScore(s => s + correct)
-    setSubmitted(true)
-  }
+    setResources(newRes)
+    setLastFeedback(choice.feedback)
+    setHistory(h => [...h, { event: scenario.events[eventIdx].text, choice: choice.label }])
 
-  const nextLevel = () => {
-    const next = level + 1
-    if (next < levels.length) {
-      setLevel(next)
-      setMatches({})
-      setSelectedLeft(null)
-      setSubmitted(false)
+    if (newRes.uptime <= 0 || newRes.budget <= 0) {
+      setDead(true)
+    } else {
+      setTimeout(() => {
+        setEventIdx(i => i + 1)
+        setLastFeedback(null)
+      }, 1800)
     }
-  }
+  }, [resources, eventIdx, scenario.events])
 
-  const allMatched = Object.keys(matches).length === current.left.length
-  const done = level >= levels.length - 1 && submitted
+  const survived = eventIdx >= scenario.events.length
+  const event = scenario.events[eventIdx]
+  const healthColor = (val) => val > 60 ? THEME.correct : val > 30 ? THEME.warning : THEME.incorrect
+
+  const restart = () => {
+    setEventIdx(0)
+    setResources(scenario.startResources)
+    setLastFeedback(null)
+    setHistory([])
+    setDead(false)
+  }
 
   return (
     <div className="game-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h2 className="game-title" style={{ margin: 0 }}>{current.title}</h2>
-        <div className="game-stats">
-          <div className="stat"><span className="stat-value">{score}</span><span className="stat-label">Score</span></div>
-          <div className="stat"><span className="stat-value">{level + 1}/{levels.length}</span><span className="stat-label">Level</span></div>
-        </div>
+      <h2 className="game-title">{scenario.title}</h2>
+      <p className="game-subtitle">{scenario.intro}</p>
+
+      <div style={{ display: 'flex', gap: 16, margin: '16px 0', justifyContent: 'center' }}>
+        {[
+          { label: 'Budget', value: resources.budget, icon: '$' },
+          { label: 'Uptime', value: resources.uptime, icon: '%' },
+          { label: 'Users', value: resources.users, icon: '' },
+        ].map(r => (
+          <div key={r.label} style={{ textAlign: 'center', padding: '12px 20px', background: THEME.surface, borderRadius: 12, border: \`1px solid \${THEME.border}\`, minWidth: 80 }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: healthColor(r.value), fontFamily: "'Inter', sans-serif" }}>{r.value}{r.icon}</div>
+            <div style={{ fontSize: 11, color: THEME.textMuted, marginTop: 4 }}>{r.label}</div>
+            <div style={{ height: 4, background: THEME.surfaceLight, borderRadius: 2, marginTop: 6 }}>
+              <div style={{ height: '100%', width: \`\${r.value}%\`, background: healthColor(r.value), borderRadius: 2, transition: 'all 0.5s ease' }} />
+            </div>
+          </div>
+        ))}
       </div>
-      <p className="game-subtitle">{current.instruction}</p>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', margin: '1.5rem 0' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {current.left.map((item, idx) => {
-            const isMatched = idx in matches
-            const isSelected = selectedLeft === idx
-            const isCorrect = submitted && matches[idx] === current.correctPairs[idx]
-            return (
-              <div key={idx} onClick={() => handleLeftClick(idx)} style={{
-                padding: '12px',
-                background: submitted ? (isCorrect ? THEME.correctBg : (isMatched ? THEME.incorrectBg : THEME.surface)) : (isSelected ? THEME.surfaceLight : THEME.surface),
-                border: \`1px solid \${isSelected ? THEME.accent : (submitted ? (isCorrect ? THEME.correct : THEME.incorrect) : THEME.border)}\`,
-                borderRadius: '10px',
-                cursor: submitted ? 'default' : 'pointer',
-                color: THEME.text,
-                fontFamily: "'Inter', sans-serif",
-                fontSize: '13px',
-                transition: 'all 0.15s ease',
-              }}>
-                {item}
-                {isMatched && <span style={{ float: 'right', color: THEME.accent }}>{current.right[matches[idx]]}</span>}
-              </div>
-            )
-          })}
+
+      <div style={{ fontSize: 11, color: THEME.textMuted, textAlign: 'center', marginBottom: 12 }}>Event {Math.min(eventIdx + 1, scenario.events.length)} of {scenario.events.length}</div>
+
+      {dead ? (
+        <div style={{ textAlign: 'center', padding: 24 }}>
+          <p style={{ fontSize: 18, fontWeight: 600, color: THEME.incorrect }}>System Crashed!</p>
+          <p style={{ color: THEME.textMuted, margin: '8px 0 16px' }}>{resources.uptime <= 0 ? "Total outage — users left." : "Ran out of budget."} Survived {eventIdx} of {scenario.events.length} events.</p>
+          <button className="btn-primary" onClick={restart}>Try Again</button>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {current.right.map((item, idx) => {
-            const isTarget = Object.values(matches).includes(idx)
-            return (
-              <div key={idx} onClick={() => handleRightClick(idx)} style={{
-                padding: '12px',
-                background: isTarget ? THEME.surfaceLight : THEME.surface,
-                border: \`1px solid \${isTarget ? THEME.accent : THEME.border}\`,
-                borderRadius: '10px',
-                cursor: submitted ? 'default' : 'pointer',
-                color: THEME.text,
-                fontFamily: "'Inter', sans-serif",
-                fontSize: '13px',
-                fontWeight: 600,
-                transition: 'all 0.15s ease',
-              }}>
-                {item}
-              </div>
-            )
-          })}
+      ) : survived ? (
+        <div style={{ textAlign: 'center', padding: 24 }}>
+          <p style={{ fontSize: 18, fontWeight: 600, color: THEME.correct }}>You Survived!</p>
+          <p style={{ color: THEME.textMuted, margin: '8px 0' }}>Final: ${resources.budget} budget, {resources.uptime}% uptime, {resources.users} users</p>
+          <button className="btn-primary" onClick={restart}>Play Again</button>
         </div>
-      </div>
-      <div className="game-actions">
-        {!submitted && <button className="btn-primary" onClick={checkAnswers} disabled={!allMatched}>Check Matches</button>}
-        {submitted && !done && <button className="btn-primary" onClick={nextLevel}>Next Level</button>}
-        {done && <p style={{ color: THEME.accent, fontWeight: 600 }}>Complete! Final score: {score}/{current.left.length * levels.length}</p>}
-      </div>
+      ) : (
+        <div>
+          <div style={{ padding: 16, background: THEME.white, border: \`1px solid \${THEME.border}\`, borderRadius: 12, marginBottom: 12 }}>
+            <p style={{ fontWeight: 600, color: THEME.text, fontSize: 14 }}>{event.text}</p>
+          </div>
+          {lastFeedback ? (
+            <div style={{ padding: 12, background: THEME.warningBg, border: \`1px solid \${THEME.warning}\`, borderRadius: 10, fontSize: 13, color: THEME.text }}>{lastFeedback}</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {event.choices.map((c, i) => (
+                <button key={i} onClick={() => handleChoice(c)} style={{
+                  padding: '12px 16px', background: THEME.surface, border: \`1px solid \${THEME.border}\`,
+                  borderRadius: 10, cursor: 'pointer', textAlign: 'left', fontSize: 13,
+                  color: THEME.text, fontFamily: "'Inter', sans-serif", transition: 'all 0.15s ease',
+                }}>{c.label}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 \`\`\`
 
 ## Design Principles
-1. **Frontier testing**: Target the edge of what the student knows. Probe where understanding breaks down.
-2. **Signal density**: Every interaction should reveal something about understanding. No filler.
-3. **Engagement through agency**: Give meaningful choices, not just recall questions.
-4. **Misconception targeting**: If the profile lists specific misconceptions, design the game to surface and challenge them.`
+1. **Real game feel**: The player should feel tension, momentum, and stakes. Use HP, timers, score multipliers, resource pools, escalating difficulty — the mechanics of real games.
+2. **Continuous evolving state**: Avoid isolated "answer then next" rounds. Each decision should affect future state. The game world should feel alive and responsive.
+3. **Learning through consequences**: The student discovers correct answers by experiencing what happens when they're wrong — system crashes, resources drain, combos break. Not through "Correct!/Incorrect!" popups.
+4. **Frontier testing**: Target the edge of what the student knows. Probe where understanding breaks down.
+5. **Misconception targeting**: Design the game so that common misconceptions lead to predictable failure modes the student can learn from.`
 
   const performanceSection = profile.recentPerformance.length > 0
     ? `\n\nRecent game performance:\n${profile.recentPerformance.map(p =>
@@ -675,11 +789,12 @@ Current module: ${profile.currentModule}
 Upcoming topics: ${profile.upcomingTopics.join(', ')}${performanceSection}${topicInstruction}
 
 ## Requirements
-1. Invent a CREATIVE game mechanic — NOT a standard multiple-choice quiz
-2. Hardcode 3-5 rounds/levels of content directly in the component
-3. Content should target the student's known gaps and misconceptions
-4. Include scoring, feedback, and round progression
-5. Output ONLY the React component code — no explanation${buildArticleSection(articleContext)}`
+1. Build a REAL GAME with real game mechanics — HP, timers, score multipliers, resource management, escalating difficulty, combos, or live simulations. The player should feel tension and stakes. NEVER make a quiz, multiple-choice, or click-to-reveal format.
+2. The game must have continuous, evolving state — not isolated rounds. Each action should affect what comes next (resources deplete, difficulty scales, combos build, systems respond).
+3. Hardcode all game content directly in the component — 3-5 levels/scenarios
+4. Content should target the student's known gaps and misconceptions
+5. Learning happens through gameplay consequences, not "Correct/Incorrect" labels. Wrong choices should have natural in-game costs (lose HP, drain resources, break combos, crash the system).
+6. Output ONLY the React component code — no explanation${buildArticleSection(articleContext)}`
 
   return { system, user }
 }

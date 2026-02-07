@@ -86,6 +86,7 @@ async function callOpenRouter({ messages, tools, response_format }: CallLLMParam
       tools,
       tool_choice: tools && tools.length > 0 ? 'auto' : undefined,
       response_format,
+      max_tokens: 16384,
     }),
   });
 
@@ -184,7 +185,10 @@ async function callGeminiSDK({ messages, tools, response_format }: CallLLMParams
     systemInstruction,
     tools: geminiTools,
     toolConfig: geminiTools ? { functionCallingConfig: { mode: 'AUTO' } } : undefined,
-    generationConfig: response_format?.type === 'json_object' ? { responseMimeType: 'application/json' } : undefined,
+    generationConfig: {
+      maxOutputTokens: 16384,
+      ...(response_format?.type === 'json_object' ? { responseMimeType: 'application/json' } : {}),
+    },
   };
 
   const response = await ai.models.generateContent({

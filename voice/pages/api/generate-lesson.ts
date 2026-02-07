@@ -144,7 +144,45 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (raw.startsWith('```')) {
       raw = raw.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
     }
-    const generatedLesson = JSON.parse(raw);
+
+    let generatedLesson: any;
+    try {
+      generatedLesson = JSON.parse(raw);
+    } catch (parseErr) {
+      // LLM output was likely truncated — attempt repair
+      console.warn('[LESSON_GEN] JSON parse failed, attempting repair...');
+      let repaired = raw;
+      // Close any unclosed string (find last unescaped quote)
+      const quoteCount = (repaired.match(/(?<!\\)"/g) || []).length;
+      if (quoteCount % 2 !== 0) repaired += '"';
+      // Close unclosed array brackets and object braces
+      const open = (ch: string) => (repaired.match(new RegExp(`\\${ch}`, 'g')) || []).length;
+      const brackets = open('[') - open(']');
+      const braces = open('{') - open('}');
+      for (let i = 0; i < brackets; i++) repaired += ']';
+      for (let i = 0; i < braces; i++) repaired += '}';
+      try {
+        generatedLesson = JSON.parse(repaired);
+        console.log('[LESSON_GEN] JSON repair succeeded');
+      } catch {
+        // Last resort: extract content before the break and build a valid object
+        const contentMatch = raw.match(/"content"\s*:\s*"([\s\S]*)/);
+        if (contentMatch) {
+          // Grab everything after "content": " and clean up
+          let content = contentMatch[1];
+          // Remove trailing incomplete JSON
+          content = content.replace(/",?\s*"mastery_criteria[\s\S]*$/, '');
+          // Unescape for readability, then re-escape
+          generatedLesson = {
+            content: content.replace(/\\n/g, '\n').replace(/\\"/g, '"'),
+            mastery_criteria: ['Review this lesson and confirm understanding of key concepts']
+          };
+          console.log('[LESSON_GEN] Extracted partial content as fallback');
+        } else {
+          throw parseErr;
+        }
+      }
+    }
     
     // Ensure mastery_criteria is an array
     if (!Array.isArray(generatedLesson.mastery_criteria)) {

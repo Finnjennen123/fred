@@ -106,6 +106,20 @@ export default function Home() {
 
   useEffect(() => { scrollToBottom() }, [messages])
 
+  // ── Hydrate course from sessionStorage on mount ──
+  useEffect(() => {
+    const storedCourse = sessionStorage.getItem('currentCourse')
+    if (storedCourse && !generatedCourse) {
+      try {
+        const parsed = JSON.parse(storedCourse)
+        setGeneratedCourse(parsed)
+        setPhase('complete')
+        setIsComplete(true)
+        setStatus('Course ready')
+      } catch (_) {}
+    }
+  }, [])
+
   // ── Check for card fly-in data on mount (arriving from course page) ──
   useEffect(() => {
     const stored = flyInDataRef.current
