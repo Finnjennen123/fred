@@ -4,7 +4,6 @@ import Head from 'next/head'
 import { motion } from 'framer-motion'
 import { MOCK_COURSE } from '../lib/mock-course'
 import OrbExplosion from '../components/OrbExplosion'
-import { authClient } from '../lib/auth-client'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -19,7 +18,6 @@ interface OnboardingResult {
 
 export default function Home() {
   const router = useRouter()
-  const session = authClient.useSession()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [currentInput, setCurrentInput] = useState('')
@@ -662,11 +660,6 @@ export default function Home() {
     setStatus(next ? 'Muted' : isListening ? 'Listening...' : 'Tap the orb to start')
   }, [isMuted, isListening])
 
-  const handleSignOut = useCallback(async () => {
-    await authClient.signOut()
-    router.replace('/auth/sign-in')
-  }, [router])
-
   const getOrbState = () => {
     if (isComplete) return 'complete'
     if (isProcessing) return 'processing'
@@ -692,11 +685,6 @@ export default function Home() {
 
       <div className="container">
         <div className={`orb-area ${sidebarOpen ? 'shifted' : ''}`}>
-          {session.data && (
-            <button type="button" className="sign-out-btn" onClick={handleSignOut} title="Sign out">
-              Sign out
-            </button>
-          )}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div className={`orb ${getOrbState()}`} style={{ ...orbStyle, opacity: (navTransition || orbExplosion) ? 0 : undefined }} onClick={handleOrbClick} />
             {isComplete ? (

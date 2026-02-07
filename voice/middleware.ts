@@ -1,26 +1,16 @@
-import { createNeonAuth } from '@neondatabase/auth/next/server'
 import { NextRequest, NextResponse } from 'next/server'
-
-const baseUrl = process.env.NEON_AUTH_BASE_URL
-const cookieSecret = process.env.NEON_AUTH_COOKIE_SECRET
-
-// Only protect routes when Neon Auth is configured
-const authMiddleware =
-  baseUrl && cookieSecret
-    ? createNeonAuth({
-        baseUrl,
-        cookies: { secret: cookieSecret },
-      }).middleware({ loginUrl: '/auth/sign-in' })
-    : null
+/**
+ * Auth is temporarily disabled.
+ *
+ * This project previously used Neon Auth middleware to protect all non-API routes.
+ * For now we allow all users to access the site without signing in.
+ */
 
 export function middleware(request: NextRequest) {
-  if (authMiddleware) {
-    return authMiddleware(request)
-  }
   return NextResponse.next()
 }
 
 export const config = {
-  // Run on all routes except auth, api, and static assets
-  matcher: ['/((?!auth|api|_next/static|_next/image|favicon.ico).*)'],
+  // Keep matcher for future re-enablement; middleware is currently a no-op.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }

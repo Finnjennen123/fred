@@ -123,18 +123,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           notes: profilingResult.notes
         }
 
-        if (!userId) {
-          return res.status(401).json({
-            error: 'Not authenticated',
-            message: 'Please sign in before completing profiling.',
-          })
-        }
-
-        try {
-          const id = await insertLearnerProfile(userId, learnerProfile)
-          console.log('Saved learner profile to DB with id:', id)
-        } catch (e) {
-          console.error('Failed to save learner profile to DB:', e)
+        // Auth is optional for now — only persist personalization when signed in.
+        if (userId) {
+          try {
+            const id = await insertLearnerProfile(userId, learnerProfile)
+            console.log('Saved learner profile to DB with id:', id)
+          } catch (e) {
+            console.error('Failed to save learner profile to DB:', e)
+          }
         }
 
         return res.status(200).json({
