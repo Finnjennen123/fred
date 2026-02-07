@@ -14,9 +14,9 @@ const authMiddleware =
     : null
 
 export function middleware(request: NextRequest) {
-  if (authMiddleware) {
-    return authMiddleware(request)
-  }
+  // if (authMiddleware) {
+  //   return authMiddleware(request)
+  // }
   return NextResponse.next()
 }
 

@@ -200,8 +200,16 @@ function CourseCanvasInner({
   }, [course, selectedPartId]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edgesState, , onEdgesChange] = useEdgesState(initialEdges);
+  const [edgesState, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const { fitView } = useReactFlow();
+
+  // Sync nodes/edges when course changes (e.g. newly generated structure)
+  useEffect(() => {
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+    // Refit view after a short delay to allow nodes to render
+    setTimeout(() => fitView({ padding: 0.3, maxZoom: 1, duration: 300 }), 50);
+  }, [initialNodes, initialEdges, setNodes, setEdges, fitView]);
 
   const nodeTypes: NodeTypes = useMemo(() => ({
     partNode: PartNode,

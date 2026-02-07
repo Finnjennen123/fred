@@ -18,14 +18,50 @@ const CourseCanvas = dynamic(
 
 export default function CoursePage() {
   const router = useRouter();
-  const [course, setCourse] = useState<Course>(MOCK_COURSE);
+  const [course, setCourse] = useState<Course | null>(null);
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
+  const [learnerProfile, setLearnerProfile] = useState<any>(null);
+
+  // Load course and profile from session if available
+  useEffect(() => {
+    const storedCourse = sessionStorage.getItem('currentCourse');
+    const storedProfile = sessionStorage.getItem('learnerProfile');
+    
+    if (storedCourse) {
+      try {
+        setCourse(JSON.parse(storedCourse));
+      } catch (e) {
+        console.error('Failed to parse stored course', e);
+        setCourse(MOCK_COURSE);
+      }
+    } else {
+      setCourse(MOCK_COURSE);
+    }
+    
+    if (storedProfile) {
+      try {
+        setLearnerProfile(JSON.parse(storedProfile));
+      } catch (e) {
+        console.error('Failed to parse stored profile', e);
+      }
+    }
+  }, []);
+
+  // Save course to session whenever it changes (to persist generated content)
+  useEffect(() => {
+    if (course && course !== MOCK_COURSE) {
+      sessionStorage.setItem('currentCourse', JSON.stringify(course));
+    }
+  }, [course]);
 
   // ── Condensation animation state ──
   const [isCondensing, setIsCondensing] = useState(false);
   const [showCard, setShowCard] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const resetViewRef = useRef<(() => void) | null>(null);
+
+  // If course is not loaded yet, show nothing or a loader
+  if (!course) return null;
 
   // Find selected part and its phase
   const selectedPart: Part | null = (() => {
@@ -105,6 +141,104 @@ export default function CoursePage() {
       setSelectedPartId(null);
     }
   }, [selectedPartId, updatePartStatus]);
+
+  // ── Generate Lesson Content ──
+  const generateLessonContent = useCallback(async (partId: string) => {
+    // 1. Set loading state
+    let partTitle = '';
+    let phaseTitle = '';
+    let phaseDesc = '';
+
+    setCourse(prev => {
+      const updated = JSON.parse(JSON.stringify(prev)) as Course;
+      for (const phase of updated.phases) {
+        const part = phase.parts.find(p => p.id === partId);
+        if (part) {
+          part.isLoading = true;
+          partTitle = part.title;
+          phaseTitle = phase.title;
+          phaseDesc = phase.description;
+          break;
+        }
+      }
+      return updated;
+    });
+
+    try {
+      // 2. Call API
+      const res = await fetch('/api/generate-lesson', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lesson: {
+            title: partTitle,
+            description: phaseDesc,
+            phase_title: phaseTitle,
+          },
+          brain: learnerProfile ? {
+            high_level: {
+              onboarding: { subject: learnerProfile.subject, reason: learnerProfile.reason },
+              profiling: learnerProfile
+            }
+          } : undefined
+        })
+      });
+
+      if (!res.ok) throw new Error('Failed to generate lesson');
+
+      const data = await res.json();
+
+      // 3. Update course with generated content
+      setCourse(prev => {
+        const updated = JSON.parse(JSON.stringify(prev)) as Course;
+        for (const phase of updated.phases) {
+          const part = phase.parts.find(p => p.id === partId);
+          if (part) {
+            part.content = data.content;
+            // Join array with bullets for display
+            part.mastery_criteria = Array.isArray(data.mastery_criteria) 
+              ? data.mastery_criteria.map((c: string) => `• ${c}`).join('\n')
+              : data.mastery_criteria;
+            part.isLoading = false;
+          }
+        }
+        return updated;
+      });
+
+    } catch (error) {
+      console.error('Error generating lesson:', error);
+      // Reset loading state on error
+      setCourse(prev => {
+        const updated = JSON.parse(JSON.stringify(prev)) as Course;
+        for (const phase of updated.phases) {
+          const part = phase.parts.find(p => p.id === partId);
+          if (part) {
+            part.isLoading = false;
+            part.content = "Failed to generate lesson content. Please try again.";
+          }
+        }
+        return updated;
+      });
+    }
+  }, []);
+
+  // Trigger generation if content is missing
+  useEffect(() => {
+    if (!selectedPartId) return;
+
+    const findPart = () => {
+      for (const phase of course.phases) {
+        const p = phase.parts.find(part => part.id === selectedPartId);
+        if (p) return p;
+      }
+      return null;
+    };
+
+    const part = findPart();
+    if (part && !part.content && !part.isLoading) {
+      generateLessonContent(selectedPartId);
+    }
+  }, [selectedPartId, course, generateLessonContent]);
 
   // ── Trigger condensation ──
   const handleHomeClick = useCallback(() => {

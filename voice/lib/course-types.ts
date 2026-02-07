@@ -10,6 +10,8 @@ export interface Part {
   content: string;
   mastery_criteria: string;
   status: PartStatus;
+  isLoading?: boolean;
+  instructional_seed?: string;
 }
 
 export interface Phase {

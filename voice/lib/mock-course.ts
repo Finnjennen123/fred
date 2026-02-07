@@ -254,44 +254,8 @@ But understanding what's happening under the hood helps you debug and design bet
         {
           id: 'part_4_1',
           title: 'Building Your First Model',
-          content: `## From Zero to Trained Model
-
-Let's put everything together and build a real classifier using PyTorch.
-
-### The Workflow
-1. **Load data** — Use a standard dataset (MNIST, CIFAR-10)
-2. **Define model** — Stack layers
-3. **Set loss function + optimizer**
-4. **Training loop** — Forward, loss, backward, update
-5. **Evaluate** — Test on held-out data
-
-### Example: Digit Classifier
-\`\`\`python
-import torch
-import torch.nn as nn
-
-model = nn.Sequential(
-    nn.Linear(784, 128),
-    nn.ReLU(),
-    nn.Linear(128, 64),
-    nn.ReLU(),
-    nn.Linear(64, 10)
-)
-
-criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-
-for epoch in range(10):
-    for images, labels in train_loader:
-        outputs = model(images.view(-1, 784))
-        loss = criterion(outputs, labels)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-\`\`\`
-
-That's it. This simple network can achieve ~97% accuracy on handwritten digits.`,
-          mastery_criteria: 'Can describe the end-to-end ML workflow and explain each step of a basic PyTorch training loop.',
+          content: '',
+          mastery_criteria: '',
           status: 'locked',
         },
         {

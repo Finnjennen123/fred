@@ -50,7 +50,8 @@ interface LLMResponse {
 
 interface CallLLMParams {
   messages: Message[];
-  tools: Tool[];
+  tools?: Tool[];
+  response_format?: { type: 'json_object' };
 }
 
 function getProvider(): string {
@@ -61,7 +62,7 @@ function getProvider(): string {
 //   OpenRouter path
 // ═══════════════════════════════════════════
 
-async function callOpenRouter({ messages, tools }: CallLLMParams): Promise<LLMResponse> {
+async function callOpenRouter({ messages, tools, response_format }: CallLLMParams): Promise<LLMResponse> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     throw new Error('OPENROUTER_API_KEY not configured');
@@ -77,7 +78,8 @@ async function callOpenRouter({ messages, tools }: CallLLMParams): Promise<LLMRe
       model: OPENROUTER_MODEL,
       messages,
       tools,
-      tool_choice: 'auto',
+      tool_choice: tools && tools.length > 0 ? 'auto' : undefined,
+      response_format,
     }),
   });
 
@@ -113,7 +115,7 @@ function convertMessagesForGemini(messages: Message[]) {
   return { systemInstruction, contents };
 }
 
-function convertToolsForGemini(tools: Tool[]) {
+function convertToolsForGemini(tools?: Tool[]) {
   if (!tools || tools.length === 0) return undefined;
 
   const functionDeclarations = tools.map((tool) => ({
@@ -125,17 +127,17 @@ function convertToolsForGemini(tools: Tool[]) {
   return [{ functionDeclarations }];
 }
 
-function convertGeminiResponse(response: { text?: string | null; functionCalls?: Array<{ name: string; args: Record<string, unknown> }> | null }): LLMResponse {
-  const text = response.text;
-  const functionCalls = response.functionCalls;
+function convertGeminiResponse(response: any): LLMResponse {
+  const text = response.response?.text?.();
+  const functionCalls = response.response?.functionCalls?.();
 
   const message: ResponseMessage = {
     role: 'assistant',
-    content: text || null,
+    content: typeof text === 'string' ? text : null,
   };
 
   if (functionCalls && functionCalls.length > 0) {
-    message.tool_calls = functionCalls.map((fc, index) => ({
+    message.tool_calls = functionCalls.map((fc: any, index: number) => ({
       id: `call_${index}`,
       type: 'function' as const,
       function: {
@@ -156,7 +158,7 @@ function convertGeminiResponse(response: { text?: string | null; functionCalls?:
   };
 }
 
-async function callGeminiSDK({ messages, tools }: CallLLMParams): Promise<LLMResponse> {
+async function callGeminiSDK({ messages, tools, response_format }: CallLLMParams): Promise<LLMResponse> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not configured');
@@ -170,6 +172,7 @@ async function callGeminiSDK({ messages, tools }: CallLLMParams): Promise<LLMRes
     systemInstruction,
     tools: geminiTools,
     toolConfig: geminiTools ? { functionCallingConfig: { mode: 'AUTO' } } : undefined,
+    generationConfig: response_format?.type === 'json_object' ? { responseMimeType: 'application/json' } : undefined,
   };
 
   const response = await ai.models.generateContent({
@@ -185,12 +188,12 @@ async function callGeminiSDK({ messages, tools }: CallLLMParams): Promise<LLMRes
 //   Public API
 // ═══════════════════════════════════════════
 
-export async function callLLM({ messages, tools }: CallLLMParams): Promise<LLMResponse> {
+export async function callLLM({ messages, tools, response_format }: CallLLMParams): Promise<LLMResponse> {
   const provider = getProvider();
 
   if (provider === 'gemini') {
-    return callGeminiSDK({ messages, tools });
+    return callGeminiSDK({ messages, tools, response_format });
   }
 
-  return callOpenRouter({ messages, tools });
+  return callOpenRouter({ messages, tools, response_format });
 }

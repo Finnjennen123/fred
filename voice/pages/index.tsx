@@ -3,6 +3,8 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { motion } from 'framer-motion'
 import { MOCK_COURSE } from '../lib/mock-course'
+import { mapGeneratedStructureToCourse } from '../lib/course-utils'
+import type { Course } from '../lib/course-types'
 import OrbExplosion from '../components/OrbExplosion'
 import { authClient } from '../lib/auth-client'
 
@@ -32,6 +34,8 @@ export default function Home() {
 
   // Onboarding state
   const [phase, setPhase] = useState<'onboarding' | 'profiling' | 'complete'>('onboarding')
+  const [courses, setCourses] = useState<Course[]>([MOCK_COURSE])
+  const [isGenerating, setIsGenerating] = useState(false)
   const [onboardingResult, setOnboardingResult] = useState<OnboardingResult | null>(null)
   const [isComplete, setIsComplete] = useState(false)
 
@@ -402,6 +406,35 @@ export default function Home() {
           queueTtsSentence(finalMessage, abort.signal)
 
           console.log('[CHAT] Onboarding complete! Profile saved.')
+
+          // Trigger course generation
+          setIsGenerating(true)
+          setStatus('Designing your course...')
+          
+          try {
+            const genRes = await fetch('/api/course/generate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data.learnerProfile)
+            })
+            
+            if (genRes.ok) {
+              const structure = await genRes.json()
+              const newCourse = mapGeneratedStructureToCourse(structure, data.learnerProfile.subject)
+              setCourses([newCourse])
+              // Save to session for course page to pick up
+              sessionStorage.setItem('currentCourse', JSON.stringify(newCourse))
+              setStatus('Course ready')
+            } else {
+              console.error('Course generation failed')
+              setStatus('Failed to generate course')
+            }
+          } catch (e) {
+            console.error('Course generation error', e)
+            setStatus('Error generating course')
+          } finally {
+            setIsGenerating(false)
+          }
         }
       } else {
         // Text response - stream it
@@ -667,6 +700,57 @@ export default function Home() {
     router.replace('/auth/sign-in')
   }, [router])
 
+  const handleBypass = useCallback(async () => {
+    // 1. Set fake profile data for bread making
+    const fakeProfile = {
+      subject: "Making Bread",
+      reason: "I want to learn how to make delicious sourdough bread at home",
+      summary: "The user wants to learn how to make sourdough bread from scratch.",
+      onboarding_summary: "The user is a complete beginner who wants to master the art of sourdough baking.",
+      starting_level: "complete beginner",
+      depth: "comprehensive",
+      focus_areas: "sourdough starter, kneading techniques, baking temperature",
+      skip_areas: "commercial yeast bread",
+      learner_context: "Home baker with a standard oven",
+      notes: "Visual learner, loves crusty bread"
+    };
+
+    // 2. Set UI state to generating
+    setIsGenerating(true);
+    setStatus('Designing your bread course...');
+    setSidebarOpen(false); // Close sidebar to show the orb
+
+    try {
+      // 3. Trigger course generation directly
+      const genRes = await fetch('/api/course/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fakeProfile)
+      });
+      
+      if (genRes.ok) {
+        const structure = await genRes.json();
+        const newCourse = mapGeneratedStructureToCourse(structure, fakeProfile.subject);
+        setCourses([newCourse]);
+        
+        // Save both course and profile to session storage
+        sessionStorage.setItem('currentCourse', JSON.stringify(newCourse));
+        sessionStorage.setItem('learnerProfile', JSON.stringify(fakeProfile));
+        
+        setStatus('Course ready - Tap to start');
+        setIsComplete(true);
+      } else {
+        console.error('Course generation failed');
+        setStatus('Failed to generate course');
+      }
+    } catch (e) {
+      console.error('Course generation error', e);
+      setStatus('Error generating course');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, []);
+
   const getOrbState = () => {
     if (isComplete) return 'complete'
     if (isProcessing) return 'processing'
@@ -720,10 +804,21 @@ export default function Home() {
 
           {/* Courses section — anchored to bottom */}
           {(() => {
-            const courses = [MOCK_COURSE];
+            // Hide courses while generating to avoid confusion with stale data
+            if (isGenerating) {
+              return (
+                <div className={`courses-section ${sidebarOpen ? 'courses-shifted' : ''}`} style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 13, color: '#ff6b00', marginBottom: 8, fontWeight: 500 }}>
+                    Building your course...
+                  </div>
+                  <div className="loading-orb" style={{ width: 24, height: 24, margin: '0 auto' }}></div>
+                </div>
+              );
+            }
+
             if (courses.length === 0) return null;
-            const totalParts = (c: typeof MOCK_COURSE) => c.phases.reduce((s, p) => s + p.parts.length, 0);
-            const masteredParts = (c: typeof MOCK_COURSE) => c.phases.reduce((s, p) => s + p.parts.filter(pt => pt.status === 'mastered').length, 0);
+            const totalParts = (c: Course) => c.phases.reduce((s, p) => s + p.parts.length, 0);
+            const masteredParts = (c: Course) => c.phases.reduce((s, p) => s + p.parts.filter(pt => pt.status === 'mastered').length, 0);
             return (
               <div className={`courses-section ${sidebarOpen ? 'courses-shifted' : ''}`}>
                 <p className="courses-label">Your courses</p>
@@ -768,6 +863,14 @@ export default function Home() {
               </svg>
             </button>
             <h2>Onboarding</h2>
+            <button 
+              className="reset-btn" 
+              style={{ marginRight: '8px', color: '#ff6b00' }} 
+              onClick={handleBypass}
+              title="Skip onboarding and generate bread course"
+            >
+              Demo
+            </button>
             <button className="reset-btn" onClick={handleReset}>Reset</button>
           </div>
 

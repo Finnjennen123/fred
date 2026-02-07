@@ -32,7 +32,7 @@ An AI-powered learning platform that creates a **personalized, adaptive course**
 ## How It Works
 
 ### Phase 1: Voice Onboarding
-- User tells the AI (via voice, powered by **Plivo Voice API + ASR**) **what they want to learn** and the AI figures out **why they want to learn it**.
+- User tells the AI (via voice, powered by **Deepgram** for speech-to-text and text-to-speech) **what they want to learn** and the AI figures out **why they want to learn it**.
 - These two inputs — the *what* and the *why* — kick off the mentor.
 
 ### Phase 2: Identity Profiling — The Mentor Figures Out What It Needs
@@ -106,7 +106,7 @@ A great mentor doesn't wait — it leads. Our AI mentor must:
 ### Tech Stack
 
 - **LLM:** Google Gemini (DeepMind) — powers all agent reasoning, course generation, and evaluation
-- **Voice:** Plivo Voice API + ASR — handles the voice onboarding conversation (speech-to-text in 27 languages)
+- **Voice (later):** Deepgram — speech-to-text and text-to-speech for voice interaction
 - **Content sourcing:** You.com Web Search API — feeds real-time, cited information into course generation so content is accurate and grounded, not hallucinated from training data
 - **Agent tooling (optional):** Composio — a tool management layer that can handle the wiring between the LLM and its tools (routing tool calls, execution, error handling) instead of building that plumbing from scratch
 - **Hosting:** Vercel

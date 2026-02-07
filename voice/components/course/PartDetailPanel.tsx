@@ -150,7 +150,25 @@ export default function PartDetailPanel({
 
               {/* Lesson content */}
               <div className="lesson-content">
-                <ReactMarkdown>{part.content}</ReactMarkdown>
+                {part.isLoading ? (
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    padding: '60px 20px', 
+                    color: '#666',
+                    textAlign: 'center'
+                  }}>
+                    <div className="loading-orb" style={{ marginBottom: 16 }}></div>
+                    <div style={{ fontSize: 14, fontWeight: 500 }}>Generating your personalized lesson...</div>
+                    <div style={{ fontSize: 12, color: '#999', marginTop: 8 }}>
+                      Consulting the oracle &middot; Reading the stars &middot; Searching the web
+                    </div>
+                  </div>
+                ) : (
+                  <ReactMarkdown>{part.content}</ReactMarkdown>
+                )}
               </div>
             </div>
 
