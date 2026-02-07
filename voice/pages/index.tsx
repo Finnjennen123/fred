@@ -327,7 +327,7 @@ export default function Home() {
   // ── Chat (queued) ────────────────────────────────────────────
 
   // How many user messages before we auto-complete onboarding
-  const AUTO_COMPLETE_THRESHOLD = 3
+  const AUTO_COMPLETE_THRESHOLD = 2
 
   const processOne = useCallback(async (content: string) => {
     stopSpeaking()
