@@ -25,13 +25,9 @@ export default function CoursePage() {
 
   // Load course and profile from session if available
   useEffect(() => {
-    // FORCE RESET: Clear stored course to ensure we use the fresh MOCK_COURSE (with empty content)
-    // This allows the generation logic to trigger immediately for the user.
-    // sessionStorage.removeItem('currentCourse');
-
     const storedCourse = sessionStorage.getItem('currentCourse');
     const storedProfile = sessionStorage.getItem('learnerProfile');
-    
+
     if (storedCourse) {
       try {
         setCourse(JSON.parse(storedCourse));
@@ -42,7 +38,7 @@ export default function CoursePage() {
     } else {
       router.replace('/');
     }
-    
+
     if (storedProfile) {
       try {
         setLearnerProfile(JSON.parse(storedProfile));
@@ -59,14 +55,14 @@ export default function CoursePage() {
     }
   }, [course]);
 
-  // ── Game generation state ──
-  const [gameResult, setGameResult] = useState<{
-    partId: string; config: RendererConfig; customCode?: string;
-  } | null>(null);
-  const [gameLoading, setGameLoading] = useState(false);
-  const [gameProgress, setGameProgress] = useState('');
-  const [gameError, setGameError] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
+  // ── Per-part game generation state (persists across panel open/close) ──
+  const [gameStates, setGameStates] = useState<Record<string, {
+    loading: boolean;
+    progress: string;
+    error: boolean;
+    result?: { config: RendererConfig; customCode?: string };
+  }>>({});
+  const abortControllersRef = useRef<Record<string, AbortController>>({});
 
   // ── Condensation animation state ──
   const [isCondensing, setIsCondensing] = useState(false);
@@ -74,12 +70,6 @@ export default function CoursePage() {
   const cardRef = useRef<HTMLDivElement>(null);
   const resetViewRef = useRef<(() => void) | null>(null);
 
-<<<<<<< HEAD
-=======
-  // If course is not loaded yet, show nothing or a loader
-  // Moved check to end of component to avoid hook count mismatch
-  
->>>>>>> feb9802 (Fix course generation, onboarding flow, and demo mode)
   // Find selected part and its phase
   const selectedPart: Part | null = (() => {
     if (!selectedPartId || !course) return null;
@@ -99,17 +89,11 @@ export default function CoursePage() {
   })();
 
   const handlePartClick = useCallback((partId: string) => {
-    console.log('[COURSE] Part clicked:', partId);
     setSelectedPartId(partId);
   }, []);
 
   const handleClosePanel = useCallback(() => {
-    abortRef.current?.abort();
     setSelectedPartId(null);
-    setGameResult(null);
-    setGameLoading(false);
-    setGameProgress('');
-    setGameError(false);
   }, []);
 
   // Helper: update a part's status and unlock next
@@ -153,11 +137,18 @@ export default function CoursePage() {
     });
   }, []);
 
-  // ── Background game generation via SSE ──
-  const startGameGeneration = useCallback((partId: string, part: Part, signal: AbortSignal) => {
-    setGameLoading(true);
-    setGameProgress('Starting game generation...');
-    setGameError(false);
+  // ── Background game generation via SSE (per-part, survives panel close) ──
+  const startGameGeneration = useCallback((partId: string, part: Part) => {
+    // Don't restart if already generating or done
+    if (abortControllersRef.current[partId]) return;
+
+    const controller = new AbortController();
+    abortControllersRef.current[partId] = controller;
+
+    setGameStates(prev => ({
+      ...prev,
+      [partId]: { loading: true, progress: 'Starting game generation...', error: false },
+    }));
 
     fetch('/api/generate-game', {
       method: 'POST',
@@ -167,8 +158,9 @@ export default function CoursePage() {
         articleTitle: part.title,
         articleContent: part.content,
         masteryCriteria: part.mastery_criteria,
+        forceCustom: true,
       }),
-      signal,
+      signal: controller.signal,
     })
       .then(async (res) => {
         if (!res.body) throw new Error('No response body');
@@ -190,26 +182,41 @@ export default function CoursePage() {
             try {
               const event = JSON.parse(dataStr);
               if (event.event === 'spec_ready') {
-                setGameProgress(`Designing: ${event.data.title}`);
+                setGameStates(prev => ({
+                  ...prev,
+                  [partId]: { ...prev[partId], progress: `Designing: ${event.data.title}` },
+                }));
               } else if (event.event === 'config_draft') {
-                setGameProgress(`Building game (iteration ${event.data.iteration})...`);
+                setGameStates(prev => ({
+                  ...prev,
+                  [partId]: { ...prev[partId], progress: `Building game (iteration ${event.data.iteration})...` },
+                }));
               } else if (event.event === 'critic_result') {
-                setGameProgress(`Evaluating quality (score: ${event.data.score}/12)...`);
+                setGameStates(prev => ({
+                  ...prev,
+                  [partId]: { ...prev[partId], progress: `Evaluating quality (score: ${event.data.score}/12)...` },
+                }));
               } else if (event.event === 'revision') {
-                setGameProgress('Revising...');
+                setGameStates(prev => ({
+                  ...prev,
+                  [partId]: { ...prev[partId], progress: 'Revising...' },
+                }));
               } else if (event.event === 'complete') {
-                setGameResult({
-                  partId,
-                  config: event.data.config,
-                  customCode: event.data.customCode,
-                });
-                setGameLoading(false);
-                setGameProgress('');
+                setGameStates(prev => ({
+                  ...prev,
+                  [partId]: {
+                    loading: false,
+                    progress: '',
+                    error: false,
+                    result: { config: event.data.config, customCode: event.data.customCode },
+                  },
+                }));
                 return;
               } else if (event.event === 'error') {
-                setGameError(true);
-                setGameLoading(false);
-                setGameProgress('');
+                setGameStates(prev => ({
+                  ...prev,
+                  [partId]: { loading: false, progress: '', error: true },
+                }));
                 return;
               }
             } catch {
@@ -221,9 +228,10 @@ export default function CoursePage() {
       .catch((err) => {
         if (err instanceof DOMException && err.name === 'AbortError') return;
         console.error('[game-gen] SSE error:', err);
-        setGameError(true);
-        setGameLoading(false);
-        setGameProgress('');
+        setGameStates(prev => ({
+          ...prev,
+          [partId]: { loading: false, progress: '', error: true },
+        }));
       });
   }, []);
 
@@ -233,29 +241,21 @@ export default function CoursePage() {
   }, [selectedPartId, selectedPart, updatePartStatus]);
 
   const handleMarkMastered = useCallback(() => {
-    if (!selectedPartId || !selectedPart) return;
+    if (!selectedPartId) return;
     updatePartStatus(selectedPartId, 'mastered');
-
-    // If game gen hasn't produced a result yet, start it now
-    if (!gameResult || gameResult.partId !== selectedPartId) {
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-      startGameGeneration(selectedPartId, selectedPart, controller.signal);
-    }
-  }, [selectedPartId, selectedPart, updatePartStatus, gameResult, startGameGeneration]);
+  }, [selectedPartId, updatePartStatus]);
 
   // ── Generate Lesson Content ──
   const generateLessonContent = useCallback(async (partId: string) => {
     console.log('[COURSE] generateLessonContent called for:', partId);
-    
+
     if (!course) return;
 
     // 1. Get lesson details synchronously from current state
     let partTitle = '';
     let phaseTitle = '';
     let phaseDesc = '';
-    
+
     for (const phase of course.phases) {
       const part = phase.parts.find(p => p.id === partId);
       if (part) {
@@ -318,7 +318,7 @@ export default function CoursePage() {
           if (part) {
             part.content = data.content;
             // Join array with bullets for display
-            part.mastery_criteria = Array.isArray(data.mastery_criteria) 
+            part.mastery_criteria = Array.isArray(data.mastery_criteria)
               ? data.mastery_criteria.map((c: string) => `• ${c}`).join('\n')
               : data.mastery_criteria;
             part.isLoading = false;
@@ -345,7 +345,7 @@ export default function CoursePage() {
     }
   }, [course, learnerProfile]);
 
-  // Trigger generation if content is missing
+  // Trigger lesson content generation if content is missing
   useEffect(() => {
     if (!selectedPartId || !course) return;
 
@@ -359,12 +359,28 @@ export default function CoursePage() {
 
     const part = findPart();
     console.log('[COURSE] Checking part:', part?.id, 'Content:', part?.content ? 'Yes' : 'No', 'Loading:', part?.isLoading);
-    
+
     if (part && !part.content && !part.isLoading) {
       console.log('[COURSE] Triggering generation for:', part.id);
       generateLessonContent(selectedPartId);
     }
   }, [selectedPartId, course, generateLessonContent]);
+
+  // Auto-start game generation once lesson content is available
+  useEffect(() => {
+    if (!selectedPartId || !course) return;
+    // Already generating or done for this part
+    if (abortControllersRef.current[selectedPartId]) return;
+
+    let part: Part | null = null;
+    for (const phase of course.phases) {
+      const p = phase.parts.find(p => p.id === selectedPartId);
+      if (p) { part = p; break; }
+    }
+
+    if (!part || !part.content || part.isLoading) return;
+    startGameGeneration(selectedPartId, part);
+  }, [selectedPartId, course, startGameGeneration]);
 
   // ── Trigger condensation ──
   const handleHomeClick = useCallback(() => {
@@ -455,7 +471,7 @@ export default function CoursePage() {
     };
   }, [isCondensing, router]);
 
-
+  // If course is not loaded yet, show nothing
   if (!course) return null;
 
   return (
@@ -501,10 +517,10 @@ export default function CoursePage() {
             onClose={handleClosePanel}
             onStartLesson={handleStartLesson}
             onMarkMastered={handleMarkMastered}
-            gameResult={gameResult?.partId === selectedPartId ? gameResult : undefined}
-            gameLoading={gameLoading}
-            gameProgress={gameProgress}
-            gameError={gameError}
+            gameResult={selectedPartId ? gameStates[selectedPartId]?.result : undefined}
+            gameLoading={selectedPartId ? gameStates[selectedPartId]?.loading : false}
+            gameProgress={selectedPartId ? gameStates[selectedPartId]?.progress : ''}
+            gameError={selectedPartId ? gameStates[selectedPartId]?.error : false}
           />
         </motion.div>
 
@@ -627,6 +643,11 @@ export default function CoursePage() {
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(0.7); }
         }
 
         .lesson-content {

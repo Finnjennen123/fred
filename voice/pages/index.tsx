@@ -328,6 +328,9 @@ export default function Home() {
 
   // ── Chat (queued) ────────────────────────────────────────────
 
+  // How many user messages before we auto-complete onboarding
+  const AUTO_COMPLETE_THRESHOLD = 5
+
   const processOne = useCallback(async (content: string) => {
     stopSpeaking()
     const userMessage: Message = { role: 'user', content }
@@ -343,6 +346,11 @@ export default function Home() {
     // AbortController for TTS fetches
     const abort = new AbortController()
     ttsAbortRef.current = abort
+
+    // Track whether this call completes the onboarding
+    let didComplete = false
+    let currentPhase = phaseRef.current
+    let currentOnboardingResult = onboardingResultRef.current
 
     try {
       console.log('[CHAT] processOne called with:', content.slice(0, 60))
@@ -370,6 +378,8 @@ export default function Home() {
           // Transition to profiling phase
           setPhase(data.newPhase)
           setOnboardingResult(data.onboardingResult)
+          currentPhase = data.newPhase
+          currentOnboardingResult = data.onboardingResult
           console.log('[CHAT] Transitioning to profiling phase')
 
           // Immediately continue the conversation
@@ -394,6 +404,7 @@ export default function Home() {
             }
           }
         } else if (data.type === 'complete') {
+          didComplete = true
           // Onboarding complete!
           setPhase('complete')
           setIsComplete(true)
@@ -415,7 +426,7 @@ export default function Home() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data.learnerProfile)
               })
-              
+
               if (genRes.ok) {
                 const newCourse = await genRes.json()
                 console.log('[CLIENT] Received generated course:', newCourse)
@@ -438,6 +449,61 @@ export default function Home() {
       } else {
         // Text response - stream it
         await streamTextResponse(res, newMessages, abort)
+      }
+
+      // ── Auto-complete: force-finish onboarding after enough exchanges ──
+      const userCount = newMessages.filter(m => m.role === 'user').length
+      if (userCount >= AUTO_COMPLETE_THRESHOLD && currentPhase !== 'complete' && !didComplete) {
+        console.log('[CHAT] Auto-completing onboarding after', userCount, 'user messages')
+        const currentMessages = messagesRef.current
+
+        const forceRes = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: currentMessages,
+            phase: currentPhase,
+            onboardingResult: currentOnboardingResult,
+            forceComplete: true
+          })
+        })
+
+        if (forceRes.ok) {
+          const forceData = await forceRes.json()
+          if (forceData.type === 'complete' && forceData.learnerProfile) {
+            didComplete = true
+            setPhase('complete')
+            setIsComplete(true)
+
+            const finalMsg = forceData.text || "Great, I have enough to build your course!"
+            setMessages([...currentMessages, { role: 'assistant', content: finalMsg }])
+            queueTtsSentence(finalMsg, abort.signal)
+
+            console.log('[CHAT] Force-complete successful, generating course...')
+            setStatus('Generating course...')
+            try {
+              const genRes = await fetch('/api/course/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(forceData.learnerProfile)
+              })
+
+              if (genRes.ok) {
+                const newCourse = await genRes.json()
+                setGeneratedCourse(newCourse)
+                sessionStorage.setItem('currentCourse', JSON.stringify(newCourse))
+                sessionStorage.setItem('learnerProfile', JSON.stringify(forceData.learnerProfile))
+                setStatus('Course ready')
+              } else {
+                console.error('Failed to generate course:', await genRes.text())
+                setStatus('Generation failed')
+              }
+            } catch (e) {
+              console.error('Error generating course:', e)
+              setStatus('Generation failed')
+            }
+          }
+        }
       }
     } catch (e) {
       console.error('[CHAT] Error:', e)

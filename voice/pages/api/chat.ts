@@ -46,10 +46,87 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    const { messages: clientMessages, phase: clientPhase, onboardingResult: clientOnboardingResult } = req.body as {
+    const { messages: clientMessages, phase: clientPhase, onboardingResult: clientOnboardingResult, forceComplete } = req.body as {
       messages: Message[]
       phase?: 'onboarding' | 'profiling' | 'complete'
       onboardingResult?: OnboardingResult
+      forceComplete?: boolean
+    }
+
+    // ── Force-complete: extract learner profile from conversation so far ──
+    if (forceComplete) {
+      const extractTool = {
+        type: 'function' as const,
+        function: {
+          name: 'extract_learner_profile',
+          description: 'Extract the learner profile from the conversation so far.',
+          parameters: {
+            type: 'object',
+            properties: {
+              subject: { type: 'string', description: 'What the learner wants to study' },
+              reason: { type: 'string', description: 'Why they want to learn this' },
+              summary: { type: 'string', description: 'Brief conversation summary' },
+              starting_level: { type: 'string', description: "Where should the course start? E.g. 'complete beginner', 'knows basics', 'intermediate'" },
+              depth: { type: 'string', description: "How deep should the course go? E.g. 'broad overview', 'solid working knowledge', 'deep mastery'" },
+              focus_areas: { type: 'string', description: 'What should the course focus on?' },
+              skip_areas: { type: 'string', description: 'Anything to skip or de-emphasize' },
+              learner_context: { type: 'string', description: 'Relevant context about the learner' },
+              notes: { type: 'string', description: 'Other observations' },
+              final_message: { type: 'string', description: "A short, warm closing message to the user (1-2 sentences). Something like 'Awesome, I've got everything I need!'" }
+            },
+            required: ['subject', 'reason', 'summary', 'starting_level', 'depth', 'focus_areas', 'final_message']
+          }
+        }
+      }
+
+      const extractMessages = [
+        {
+          role: 'system' as const,
+          content: `You are analyzing a conversation between a learner and an onboarding assistant. Based on what has been discussed, extract the learner's profile by calling extract_learner_profile. For any information not explicitly discussed, make reasonable inferences from context. You MUST call the tool.`
+        },
+        ...clientMessages
+      ]
+
+      const extractData = await callLLM({ messages: extractMessages, tools: [extractTool] })
+      const extractMsg = extractData.choices?.[0]?.message
+
+      if (extractMsg?.tool_calls?.length > 0) {
+        const args = JSON.parse(extractMsg.tool_calls[0].function.arguments)
+        return res.status(200).json({
+          type: 'complete',
+          text: args.final_message || "Great, I have enough to build your course. Let's go!",
+          learnerProfile: {
+            subject: args.subject || '',
+            reason: args.reason || '',
+            summary: args.summary || '',
+            onboarding_summary: args.summary || '',
+            starting_level: args.starting_level || 'beginner',
+            depth: args.depth || 'moderate',
+            focus_areas: args.focus_areas || '',
+            skip_areas: args.skip_areas || '',
+            learner_context: args.learner_context || '',
+            notes: args.notes || ''
+          }
+        })
+      }
+
+      // Fallback if LLM didn't call the tool
+      return res.status(200).json({
+        type: 'complete',
+        text: "I've got enough to get started. Let me build your course!",
+        learnerProfile: {
+          subject: clientOnboardingResult?.subject || 'General Topic',
+          reason: clientOnboardingResult?.reason || 'Personal interest',
+          summary: clientOnboardingResult?.summary || 'Learner onboarding',
+          onboarding_summary: clientOnboardingResult?.summary || 'Learner onboarding',
+          starting_level: 'beginner',
+          depth: 'moderate',
+          focus_areas: '',
+          skip_areas: '',
+          learner_context: '',
+          notes: ''
+        }
+      })
     }
 
     // Determine current phase
