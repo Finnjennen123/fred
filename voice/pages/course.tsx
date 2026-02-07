@@ -218,23 +218,20 @@ export default function CoursePage() {
   const handleStartLesson = useCallback(() => {
     if (!selectedPartId || !selectedPart) return;
     updatePartStatus(selectedPartId, 'in_progress');
-
-    // Skip if we already have a game for this part
-    if (gameResult?.partId === selectedPartId) return;
-
-    // Abort previous SSE if any
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    startGameGeneration(selectedPartId, selectedPart, controller.signal);
-  }, [selectedPartId, selectedPart, updatePartStatus, gameResult, startGameGeneration]);
+  }, [selectedPartId, selectedPart, updatePartStatus]);
 
   const handleMarkMastered = useCallback(() => {
-    if (selectedPartId) {
-      updatePartStatus(selectedPartId, 'mastered');
-      // Panel stays open — transitions to game/loading view
+    if (!selectedPartId || !selectedPart) return;
+    updatePartStatus(selectedPartId, 'mastered');
+
+    // If game gen hasn't produced a result yet, start it now
+    if (!gameResult || gameResult.partId !== selectedPartId) {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      startGameGeneration(selectedPartId, selectedPart, controller.signal);
     }
-  }, [selectedPartId, updatePartStatus]);
+  }, [selectedPartId, selectedPart, updatePartStatus, gameResult, startGameGeneration]);
 
   // ── Generate Lesson Content ──
   const generateLessonContent = useCallback(async (partId: string) => {
