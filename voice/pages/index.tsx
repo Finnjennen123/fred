@@ -329,7 +329,7 @@ export default function Home() {
   // ── Chat (queued) ────────────────────────────────────────────
 
   // How many user messages before we auto-complete onboarding
-  const AUTO_COMPLETE_THRESHOLD = 5
+  const AUTO_COMPLETE_THRESHOLD = 3
 
   const processOne = useCallback(async (content: string) => {
     stopSpeaking()
@@ -719,8 +719,8 @@ export default function Home() {
   }, [router])
 
   const handleOrbClick = useCallback(() => {
-    // If onboarding is complete, close everything then explode
-    if (isComplete) {
+    // If onboarding is complete AND course is generated, close everything then explode
+    if (isComplete && generatedCourse) {
       stopListening()
       stopSpeaking()
       setSidebarOpen(false)
@@ -750,7 +750,7 @@ export default function Home() {
       startListening() 
     }
     else { stopListening(); stopSpeaking() }
-  }, [isListening, isComplete, router, startListening, stopListening, stopSpeaking, getAudioContext, messages.length])
+  }, [isListening, isComplete, generatedCourse, router, startListening, stopListening, stopSpeaking, getAudioContext, messages.length])
 
   const handleReset = useCallback(() => {
     stopListening(); stopSpeaking()
@@ -878,7 +878,7 @@ export default function Home() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div className={`orb ${getOrbState()}`} style={{ ...orbStyle, opacity: (navTransition || orbExplosion) ? 0 : undefined }} onClick={handleOrbClick} />
-            {isComplete ? (
+            {isComplete && generatedCourse ? (
               <p className="complete-message">Tap the orb to view course</p>
             ) : (
               <p className="status">{status}</p>

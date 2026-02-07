@@ -77,7 +77,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const extractMsg = extractData.choices?.[0]?.message
 
       if ((extractMsg?.tool_calls?.length ?? 0) > 0) {
-        const args = JSON.parse(extractMsg.tool_calls[0].function.arguments)
+        const args = JSON.parse(extractMsg!.tool_calls![0].function.arguments)
         return res.status(200).json({
           type: 'complete',
           text: args.final_message || "Great, I have enough to build your course. Let's go!",
