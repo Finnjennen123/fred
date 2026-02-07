@@ -20,12 +20,12 @@ interface ToolFunction {
   parameters: Record<string, unknown>;
 }
 
-interface Tool {
+export interface Tool {
   type: 'function';
   function: ToolFunction;
 }
 
-interface ToolCall {
+export interface ToolCall {
   id: string;
   type: 'function';
   function: {
@@ -34,13 +34,13 @@ interface ToolCall {
   };
 }
 
-interface ResponseMessage {
+export interface ResponseMessage {
   role: 'assistant';
   content: string | null;
   tool_calls?: ToolCall[];
 }
 
-interface LLMResponse {
+export interface LLMResponse {
   choices: Array<{
     index: number;
     message: ResponseMessage;
@@ -127,22 +127,28 @@ function convertToolsForGemini(tools?: Tool[]) {
   return [{ functionDeclarations }];
 }
 
-function convertGeminiResponse(response: any): LLMResponse {
-  const text = response.response?.text?.();
-  const functionCalls = response.response?.functionCalls?.();
+function convertGeminiResponse(response: {
+  text?: string | null;
+  functionCalls?: Array<{ name?: string; args?: Record<string, unknown> }> | null;
+}): LLMResponse {
+  const text = response.text;
+  const functionCalls =
+    (response.functionCalls || []).filter(
+      (fc): fc is { name: string; args?: Record<string, unknown> } => typeof fc?.name === 'string' && fc.name.length > 0
+    ) || [];
 
   const message: ResponseMessage = {
     role: 'assistant',
     content: typeof text === 'string' ? text : null,
   };
 
-  if (functionCalls && functionCalls.length > 0) {
-    message.tool_calls = functionCalls.map((fc: any, index: number) => ({
+  if (functionCalls.length > 0) {
+    message.tool_calls = functionCalls.map((fc, index) => ({
       id: `call_${index}`,
       type: 'function' as const,
       function: {
         name: fc.name,
-        arguments: JSON.stringify(fc.args),
+        arguments: JSON.stringify(fc.args || {}),
       },
     }));
   }
@@ -152,7 +158,7 @@ function convertGeminiResponse(response: any): LLMResponse {
       {
         index: 0,
         message,
-        finish_reason: functionCalls ? 'tool_calls' : 'stop',
+        finish_reason: functionCalls.length > 0 ? 'tool_calls' : 'stop',
       },
     ],
   };
