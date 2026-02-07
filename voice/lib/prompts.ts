@@ -183,7 +183,16 @@ Once you know enough to answer:
 //   TOOL DEFINITIONS
 // ═══════════════════════════════════════════
 
-export const onboardingTools = [
+type LLMTool = {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+};
+
+export const onboardingTools: LLMTool[] = [
   {
     type: "function",
     function: {
@@ -211,7 +220,7 @@ export const onboardingTools = [
   }
 ];
 
-export const profilingTools = [
+export const profilingTools: LLMTool[] = [
   {
     type: "function",
     function: {
