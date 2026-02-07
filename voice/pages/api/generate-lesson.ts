@@ -139,7 +139,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       throw new Error('No content received from LLM');
     }
 
-    const generatedLesson = JSON.parse(choice.message.content);
+    // Strip markdown code fences if LLM wraps response in ```json ... ```
+    let raw = choice.message.content.trim();
+    if (raw.startsWith('```')) {
+      raw = raw.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+    }
+    const generatedLesson = JSON.parse(raw);
     
     // Ensure mastery_criteria is an array
     if (!Array.isArray(generatedLesson.mastery_criteria)) {

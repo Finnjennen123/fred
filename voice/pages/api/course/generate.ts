@@ -76,7 +76,11 @@ Design the course structure now.
 
     let courseStructure;
     try {
-      courseStructure = JSON.parse(content);
+      let raw = content.trim();
+      if (raw.startsWith('```')) {
+        raw = raw.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+      }
+      courseStructure = JSON.parse(raw);
     } catch (e) {
       console.error('[COURSE_GEN] Failed to parse JSON:', content);
       return res.status(500).json({ error: 'Failed to parse generated course structure' });

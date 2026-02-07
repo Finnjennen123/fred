@@ -5,7 +5,6 @@ import { motion } from 'framer-motion'
 import { MOCK_COURSE } from '../lib/mock-course'
 import { Course } from '../lib/course-types'
 import OrbExplosion from '../components/OrbExplosion'
-import { authClient } from '../lib/auth-client'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -20,7 +19,6 @@ interface OnboardingResult {
 
 export default function Home() {
   const router = useRouter()
-  const session = authClient.useSession()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [currentInput, setCurrentInput] = useState('')
@@ -772,11 +770,6 @@ export default function Home() {
     setStatus(next ? 'Muted' : isListening ? 'Listening...' : 'Tap the orb to start')
   }, [isMuted, isListening])
 
-  const handleSignOut = useCallback(async () => {
-    await authClient.signOut()
-    router.replace('/auth/sign-in')
-  }, [router])
-
   const handleDemoLoad = useCallback(async () => {
     try {
       setStatus('Loading demo...')
@@ -870,11 +863,6 @@ export default function Home() {
             >
               Demo
             </button>
-            {session.data && (
-              <button type="button" className="sign-out-btn" onClick={handleSignOut} title="Sign out">
-                Sign out
-              </button>
-            )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div className={`orb ${getOrbState()}`} style={{ ...orbStyle, opacity: (navTransition || orbExplosion) ? 0 : undefined }} onClick={handleOrbClick} />
