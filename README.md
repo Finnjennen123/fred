@@ -1,3 +1,5 @@
+VIDEO: https://www.loom.com/share/40732cd7131c42c1a87b0a9a7bc2e7a9
+
 # AI-Powered Personalized Learning System
 
 A complete pipeline that transforms voice input into fully personalized courses, powered by AI at every step.
